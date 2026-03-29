@@ -74,8 +74,7 @@ export default async function handler(req, res) {
   'grocery_store',
   'supermarket',
   'food_stand',
-  'street_food',
-  'indian_restaurant'
+  'street_food'
 ]
 
 const filteredPlaces = places.filter(place => {
