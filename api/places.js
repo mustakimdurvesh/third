@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const radius = 1500
+    const radius = 2000
 
     const overpassQuery = `
   [out:json][timeout:15];
