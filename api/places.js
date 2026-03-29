@@ -9,38 +9,52 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Location required' })
   }
 
-    console.log('API key present:', !!process.env.FOURSQUARE_API_KEY)
   try {
-  
-    const response = await fetch(
-      `https://api.foursquare.com/v3/places/search?ll=${latitude},${longitude}&query=${encodeURIComponent(query)}&radius=1000&limit=15&fields=name,location,categories,hours,distance,rating,photos`,
-   
+    const radius = 1000
 
-      {
-        headers: {
-          'Authorization': process.env.FOURSQUARE_API_KEY,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      }
-    )
+    const overpassQuery = `
+      [out:json][timeout:10];
+      (
+        node["amenity"="cafe"](around:${radius},${latitude},${longitude});
+        node["amenity"="bar"](around:${radius},${latitude},${longitude});
+        node["amenity"="restaurant"](around:${radius},${latitude},${longitude});
+        node["amenity"="pub"](around:${radius},${latitude},${longitude});
+      );
+      out body 20;
+    `
 
-    console.log('Raw Foursquare status:', response.status)
-    console.log('Raw Foursquare statusText:', response.statusText)
-    
-      console.log('Auth header:', process.env.FOURSQUARE_API_KEY?.slice(0, 10) + '...')
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(overpassQuery)}`
+    })
+
     const data = await response.json()
-    console.log('Foursquare data:', JSON.stringify(data))
 
-    if (!data.results) {
-      console.log('API key present:', !!process.env.FOURSQUARE_API_KEY)
-      return res.status(500).json({ error: 'No results from Foursquare' })
+    if (!data.elements) {
+      return res.status(500).json({ error: 'No results from OpenStreetMap' })
     }
 
-    res.status(200).json({ places: data.results })
+    const places = data.elements
+      .filter(el => el.tags && el.tags.name)
+      .map(el => ({
+        name: el.tags.name,
+        type: el.tags.amenity,
+        address: [
+          el.tags['addr:street'],
+          el.tags['addr:housenumber']
+        ].filter(Boolean).join(' ') || 'Address unavailable',
+        latitude: el.lat,
+        longitude: el.lon,
+        opening_hours: el.tags.opening_hours || null,
+        cuisine: el.tags.cuisine || null,
+        website: el.tags.website || null
+      }))
+
+    res.status(200).json({ places })
 
   } catch (error) {
-    console.error('Foursquare error:', error)
+    console.error('Overpass error:', error)
     res.status(500).json({ error: 'Could not fetch places' })
   }
 }
