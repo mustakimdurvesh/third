@@ -23,8 +23,8 @@ ${placeSummary}
 Rules for selection:
 - A third space must be somewhere you can sit, stay, and spend time — NOT a quick takeaway, street stall, or fast food stop
 - Cafes and coffee shops are ideal third spaces
-- Cafes that are well established, have significant number of reviews on popular platforms are ideal
 - Restaurants are acceptable only if they have a relaxed atmosphere suitable for lingering
+- Only include cafes and drinks spots. Places with primary emphasis on coffee, teas, beers, bakery, snacks.
 - Bars and pubs are good for evening situations
 - Do NOT recommend places that are clearly quick-service, takeaway-only, or street food stalls
 - Match the place type to the situation — solo laptop work needs quiet cafes, not busy restaurants
