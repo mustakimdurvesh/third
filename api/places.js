@@ -15,7 +15,8 @@ export default async function handler(req, res) {
     )
 
     const data = await response.json()
-
+    console.log('here status:', response.status)
+    console.log('here response:', JSON.stringify(data))
     if (!data.items) {
       return res.status(500).json({ error: 'No results from HERE' })
     }
