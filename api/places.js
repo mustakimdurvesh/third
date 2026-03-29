@@ -10,18 +10,23 @@ export default async function handler(req, res) {
   }
 
   try {
-    const radius = 1000
+    const radius = 1500
 
     const overpassQuery = `
-      [out:json][timeout:10];
-      (
-        node["amenity"="cafe"](around:${radius},${latitude},${longitude});
-        node["amenity"="bar"](around:${radius},${latitude},${longitude});
-        node["amenity"="restaurant"](around:${radius},${latitude},${longitude});
-        node["amenity"="pub"](around:${radius},${latitude},${longitude});
-      );
-      out body 20;
-    `
+  [out:json][timeout:15];
+  (
+    node["amenity"="cafe"](around:${radius},${latitude},${longitude});
+    node["amenity"="coffee_shop"](around:${radius},${latitude},${longitude});
+    node["leisure"="cafe"](around:${radius},${latitude},${longitude});
+    node["shop"="coffee"](around:${radius},${latitude},${longitude});
+    node["amenity"="bar"](around:${radius},${latitude},${longitude});
+    node["amenity"="pub"](around:${radius},${latitude},${longitude});
+    node["amenity"="lounge"](around:${radius},${latitude},${longitude});
+    node["amenity"="bistro"](around:${radius},${latitude},${longitude});
+    node["tourism"="cafe"](around:${radius},${latitude},${longitude});
+  );
+  out body 30;
+`
 
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
@@ -35,21 +40,24 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'No results from OpenStreetMap' })
     }
 
-    const places = data.elements
-      .filter(el => el.tags && el.tags.name)
-      .map(el => ({
-        name: el.tags.name,
-        type: el.tags.amenity,
-        address: [
-          el.tags['addr:street'],
-          el.tags['addr:housenumber']
-        ].filter(Boolean).join(' ') || 'Address unavailable',
-        latitude: el.lat,
-        longitude: el.lon,
-        opening_hours: el.tags.opening_hours || null,
-        cuisine: el.tags.cuisine || null,
-        website: el.tags.website || null
-      }))
+   const places = data.elements
+  .filter(el => el.tags && el.tags.name)
+  .map(el => ({
+    name: el.tags.name,
+    type: el.tags.amenity || el.tags.shop || el.tags.leisure || 'cafe',
+    address: [
+      el.tags['addr:street'],
+      el.tags['addr:housenumber']
+    ].filter(Boolean).join(' ') || 'Address unavailable',
+    latitude: el.lat,
+    longitude: el.lon,
+    opening_hours: el.tags.opening_hours || null,
+    cuisine: el.tags.cuisine || null,
+    website: el.tags.website || null,
+    wifi: el.tags.internet_access || null,
+    outdoor_seating: el.tags.outdoor_seating || null,
+    takeaway: el.tags.takeaway || null
+  }))
 
     res.status(200).json({ places })
 

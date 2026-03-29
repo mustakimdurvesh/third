@@ -10,9 +10,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const placeSummary = places.slice(0, 15).map((p, i) =>
-      `${i + 1}. ${p.name} (${p.type})${p.cuisine ? ', cuisine: ' + p.cuisine : ''}${p.opening_hours ? ', hours: ' + p.opening_hours : ''}`
-    ).join('\n')
+   const placeSummary = places.slice(0, 15).map((p, i) =>
+  `${i + 1}. ${p.name} (${p.type})${p.cuisine ? ', cuisine: ' + p.cuisine : ''}${p.opening_hours ? ', hours: ' + p.opening_hours : ''}${p.wifi ? ', wifi: ' + p.wifi : ''}${p.outdoor_seating ? ', outdoor seating: ' + p.outdoor_seating : ''}${p.takeaway === 'only' ? ', TAKEAWAY ONLY' : ''}`
+).join('\n')
 
 const prompt = `You are helping someone find the perfect third space — a place to spend time outside home or work.
 
