@@ -64,7 +64,31 @@ export default async function handler(req, res) {
       total_ratings: place.userRatingCount || null
     }))
 
-    res.status(200).json({ places })
+    const quickStopTypes = [
+  'fast_food_restaurant',
+  'sandwich_shop',
+  'juice_bar',
+  'ice_cream_shop',
+  'candy_store',
+  'convenience_store',
+  'grocery_store',
+  'supermarket',
+  'food_stand',
+  'street_food',
+  'indian_restaurant'
+]
+
+const filteredPlaces = places.filter(place => {
+  if (situation === 'Quick 30 minutes') return true
+  return !quickStopTypes.some(type =>
+    place.type?.toLowerCase().includes(type) ||
+    place.name?.toLowerCase().includes('fast') ||
+    place.name?.toLowerCase().includes('quick') ||
+    place.name?.toLowerCase().includes('express')
+  )
+})
+
+res.status(200).json({ places: filteredPlaces })
 
   } catch (error) {
     console.error('Places error:', error)
