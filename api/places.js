@@ -26,6 +26,7 @@ export default async function handler(req, res) {
             'bar',
             'wine_bar',
             'pub',
+            'restaurant',
             'bakery'
           ],
           maxResultCount: 20,
