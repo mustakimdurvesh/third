@@ -14,22 +14,31 @@ export default async function handler(req, res) {
       `${i + 1}. ${p.name} (${p.type})${p.cuisine ? ', cuisine: ' + p.cuisine : ''}${p.opening_hours ? ', hours: ' + p.opening_hours : ''}`
     ).join('\n')
 
-    const prompt = `You are helping someone find the perfect third space nearby.
+const prompt = `You are helping someone find the perfect third space — a place to spend time outside home or work.
 
 User's situation: ${situation}
 
 Nearby places:
 ${placeSummary}
 
-Pick the 3 best matches for this situation. For each, explain in one sentence why it fits.
+Rules for selection:
+- A third space must be somewhere you can sit, stay, and spend time — NOT a quick takeaway, street stall, or fast food stop
+- Cafes and coffee shops are ideal third spaces
+- Cafes that are well established, have significant number of reviews on popular platforms are ideal
+- Restaurants are acceptable only if they have a relaxed atmosphere suitable for lingering
+- Bars and pubs are good for evening situations
+- Do NOT recommend places that are clearly quick-service, takeaway-only, or street food stalls
+- Match the place type to the situation — solo laptop work needs quiet cafes, not busy restaurants
+- Only recommend places that genuinely exist in the list — use the exact name as given
+- If fewer than 3 places genuinely fit, return only the ones that do
 
 Respond ONLY with valid JSON in this exact format, no other text:
 {
   "recommendations": [
     {
       "index": 1,
-      "name": "Place Name",
-      "reason": "One sentence explanation"
+      "name": "Exact place name from the list",
+      "reason": "One sentence explaining why this fits the situation"
     }
   ]
 }`
@@ -41,7 +50,7 @@ Respond ONLY with valid JSON in this exact format, no other text:
         'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.3-70b-versatile',
         max_tokens: 500,
         temperature: 0.7,
         messages: [{ role: 'user', content: prompt }]
