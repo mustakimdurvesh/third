@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { latitude, longitude } = req.body
+  const { latitude, longitude, situation } = req.body
 
   if (!latitude || !longitude) {
     return res.status(400).json({ error: 'Location required' })
