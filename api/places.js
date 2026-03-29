@@ -44,6 +44,8 @@ export default async function handler(req, res) {
     )
 
     const data = await response.json()
+    console.log('Google places status:', response.status)
+    console.log('Google places response:', JSON.stringify(data))
 
     if (!data.places) {
       console.error('Google Places error:', JSON.stringify(data))
