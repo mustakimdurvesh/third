@@ -21,23 +21,14 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           includedTypes: [
-           'cafe',
-  'coffee_shop',
-  'espresso_bar',
-  'internet_cafe',
-  'tea_house',
-  'bar',
-  'wine_bar',
-  'pub',
-  'bakery',
-  'patisserie',
-  'dessert_shop',
-  'juice_bar',
-  'sandwich_shop',
-  'brunch_restaurant',
-  'breakfast_restaurant'
+            'cafe',
+            'coffee_shop',
+            'bar',
+            'wine_bar',
+            'pub',
+            'bakery'
           ],
-          maxResultCount: 30,
+          maxResultCount: 20,
           locationRestriction: {
             circle: {
               center: {
