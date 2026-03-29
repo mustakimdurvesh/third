@@ -9,6 +9,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Location required' })
   }
 
+    console.log('API key present:', !!process.env.FOURSQUARE_API_KEY)
   try {
   
     const response = await fetch(
@@ -26,7 +27,7 @@ export default async function handler(req, res) {
 
     console.log('Raw Foursquare status:', response.status)
     console.log('Raw Foursquare statusText:', response.statusText)
-      console.log('API key present:', !!process.env.FOURSQUARE_API_KEY)
+    
       console.log('Auth header:', process.env.FOURSQUARE_API_KEY?.slice(0, 10) + '...')
     const data = await response.json()
     console.log('Foursquare data:', JSON.stringify(data))
