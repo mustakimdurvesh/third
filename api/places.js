@@ -11,31 +11,61 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://discover.search.hereapi.com/v1/discover?at=${latitude},${longitude}&q=cafe+bar+coffee&limit=20&apiKey=${process.env.HERE_API_KEY}`,
+      'https://places.googleapis.com/v1/places:searchNearby',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': process.env.GOOGLE_PLACES_API_KEY,
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.types,places.regularOpeningHours,places.websiteUri,places.rating,places.userRatingCount,places.primaryTypeDisplayName'
+        },
+        body: JSON.stringify({
+          includedTypes: [
+            'cafe',
+            'coffee_shop',
+            'bar',
+            'wine_bar',
+            'pub',
+            'restaurant',
+            'bakery'
+          ],
+          maxResultCount: 20,
+          locationRestriction: {
+            circle: {
+              center: {
+                latitude,
+                longitude
+              },
+              radius: 1500
+            }
+          }
+        })
+      }
     )
 
     const data = await response.json()
-    console.log('here status:', response.status)
-    console.log('here response:', JSON.stringify(data))
-    if (!data.items) {
-      return res.status(500).json({ error: 'No results from HERE' })
+
+    if (!data.places) {
+      console.error('Google Places error:', JSON.stringify(data))
+      return res.status(500).json({ error: 'No results from Google Places' })
     }
 
-    const places = data.items.map(item => ({
-      name: item.title,
-      type: item.categories?.[0]?.name || 'cafe',
-      address: item.address?.label || 'Address unavailable',
-      latitude: item.position?.lat,
-      longitude: item.position?.lng,
-      distance: item.distance,
-      opening_hours: item.openingHours?.[0]?.text?.join(', ') || null,
-      website: item.contacts?.[0]?.www?.[0]?.value || null
+    const places = data.places.map(place => ({
+      name: place.displayName?.text || 'Unknown',
+      type: place.primaryTypeDisplayName?.text || place.types?.[0] || 'cafe',
+      address: place.formattedAddress || 'Address unavailable',
+      latitude: place.location?.latitude,
+      longitude: place.location?.longitude,
+      opening_hours: place.regularOpeningHours?.weekdayDescriptions?.join(', ') || null,
+      website: place.websiteUri || null,
+      rating: place.rating || null,
+      total_ratings: place.userRatingCount || null
     }))
 
     res.status(200).json({ places })
 
   } catch (error) {
-    console.error('HERE error:', error)
+    console.error('Places error:', error)
     res.status(500).json({ error: 'Could not fetch places' })
   }
 }
