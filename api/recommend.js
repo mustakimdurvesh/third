@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   try {
- const placeSummary = filteredPlaces.slice(0, 20).map((p, i) =>
+ const placeSummary = places.slice(0, 20).map((p, i) =>
   `${i + 1}. ${p.name} (${p.type})${p.rating ? ', rating: ' + p.rating + '/5 (' + p.total_ratings + ' reviews)' : ''}${p.distance ? ', distance: ' + p.distance + 'm' : ''}${p.opening_hours ? ', hours: ' + p.opening_hours.split(',')[0] : ''}`
 ).join('\n')
 const prompt = `You are helping someone find the perfect third space — a place to spend time outside home or work. Pick the 5 best matches for this situation.
