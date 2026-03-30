@@ -20,15 +20,14 @@ User's situation: ${situation}
 Nearby places:
 ${placeSummary}
 
-Rules for selection:
-- A third space must be somewhere you can sit, stay, and spend time — NOT a quick takeaway, street stall, or fast food stop
-- Cafes and coffee shops are ideal third spaces
-- Restaurants are acceptable only if they have a relaxed atmosphere suitable for lingering
-- Only include cafes and drinks spots. Places with primary emphasis on coffee, teas, beers, bakery, snacks.
-- Bars and pubs are good for evening situations
-- Do NOT recommend places that are clearly quick-service, takeaway-only, or street food stalls
-- Match the place type to the situation — solo laptop work needs quiet cafes, not busy restaurants
-- Only recommend places that genuinely exist in the list — use the exact name as given
+Strict selection rules:
+- ALWAYS prefer coffee shops and cafes over restaurants, sweet shops, or fast food
+- Coffee shops and cafes with good ratings should be top priority for any situation involving work or solo time
+- NEVER recommend sweet shops, dessert shops, or fast food as a third space
+- NEVER recommend a restaurant over a coffee shop if a coffee shop is available
+- A third space must allow lingering — not a quick stop
+- Match rating weight: prefer places with 4.0+ rating and 400+ reviews over lower rated places
+- Only recommend places from the list using their exact names
 - If fewer than 3 places genuinely fit, return only the ones that do
 
 Respond ONLY with valid JSON in this exact format, no other text:

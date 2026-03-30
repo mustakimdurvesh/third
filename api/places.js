@@ -74,7 +74,14 @@ export default async function handler(req, res) {
   'grocery_store',
   'supermarket',
   'food_stand',
-  'street_food'
+  'street_food',
+  'fast food restaurant',
+  'indian restaurant',
+  'sweet',
+  'hotel',
+  'convenience',
+  'grocery',
+  'supermarket'
 ]
 
 const filteredPlaces = places.filter(place => {
@@ -83,7 +90,9 @@ const filteredPlaces = places.filter(place => {
     place.type?.toLowerCase().includes(type) ||
     place.name?.toLowerCase().includes('fast') ||
     place.name?.toLowerCase().includes('quick') ||
-    place.name?.toLowerCase().includes('express')
+    place.name?.toLowerCase().includes('express') ||
+     place.name?.toLowerCase().includes('sweet') ||
+    place.name?.toLowerCase().includes('hotel')
   )
 })
 
