@@ -3,7 +3,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { places, situation } = req.body
+
+  const { places, situation, exclude } = req.body
 
   if (!places || !situation) {
     return res.status(400).json({ error: 'Places and situation required' })
@@ -19,6 +20,8 @@ User's situation: ${situation}
 
 Nearby places:
 ${placeSummary}
+
+${exclude ? `\nDo NOT recommend any of these already shown places: ${exclude}` : ''}
 
 Strict selection rules:
 - ALWAYS prefer coffee shops and cafes over restaurants, sweet shops, or fast food
