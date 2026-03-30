@@ -10,8 +10,8 @@ export default async function handler(req, res) {
   }
 
   try {
-  const placeSummary = places.slice(0, 15).map((p, i) =>
-  `${i + 1}. ${p.name} (${p.type})${p.rating ? ', rating: ' + p.rating + '/5' : ''}${p.opening_hours ? ', hours: ' + p.opening_hours : ''}${p.address !== 'Address unavailable' ? ', address: ' + p.address : ''}`
+ const placeSummary = filteredPlaces.slice(0, 20).map((p, i) =>
+  `${i + 1}. ${p.name} (${p.type})${p.rating ? ', rating: ' + p.rating + '/5 (' + p.total_ratings + ' reviews)' : ''}${p.distance ? ', distance: ' + p.distance + 'm' : ''}${p.opening_hours ? ', hours: ' + p.opening_hours.split(',')[0] : ''}`
 ).join('\n')
 const prompt = `You are helping someone find the perfect third space — a place to spend time outside home or work. Pick the 5 best matches for this situation.
 
@@ -67,18 +67,20 @@ Respond ONLY with valid JSON in this exact format, no other text:
       return res.status(500).json({ error: 'Could not parse AI response' })
     }
 
-    const recommendations = parsed.recommendations.map(rec => {
-      const place = places[rec.index - 1]
-      return {
-        name: rec.name,
-        reason: rec.reason,
-        type: place?.type,
-        latitude: place?.latitude,
-        longitude: place?.longitude,
-        opening_hours: place?.opening_hours,
-        cuisine: place?.cuisine
-      }
-    })
+  const recommendations = parsed.recommendations.map(rec => {
+  const place = places[rec.index - 1]
+  return {
+    name: rec.name,
+    reason: rec.reason,
+    type: place?.type,
+    latitude: place?.latitude,
+    longitude: place?.longitude,
+    opening_hours: place?.opening_hours,
+    rating: place?.rating,
+    distance: place?.distance,
+    address: place?.address
+  }
+})
 
     res.status(200).json({ recommendations })
 

@@ -1,3 +1,12 @@
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)))
+}
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -17,7 +26,7 @@ export default async function handler(req, res) {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': process.env.GOOGLE_PLACES_API_KEY,
-          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.types,places.regularOpeningHours,places.websiteUri,places.rating,places.userRatingCount,places.primaryTypeDisplayName'
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.types,places.regularOpeningHours,places.websiteUri,places.rating,places.userRatingCount,places.primaryTypeDisplayName,places.currentOpeningHours'
         },
         body: JSON.stringify({
           includedTypes: [
@@ -53,16 +62,18 @@ export default async function handler(req, res) {
     }
 
     const places = data.places.map(place => ({
-      name: place.displayName?.text || 'Unknown',
-      type: place.primaryTypeDisplayName?.text || place.types?.[0] || 'cafe',
-      address: place.formattedAddress || 'Address unavailable',
-      latitude: place.location?.latitude,
-      longitude: place.location?.longitude,
-      opening_hours: place.regularOpeningHours?.weekdayDescriptions?.join(', ') || null,
-      website: place.websiteUri || null,
-      rating: place.rating || null,
-      total_ratings: place.userRatingCount || null
-    }))
+  name: place.displayName?.text || 'Unknown',
+  type: place.primaryTypeDisplayName?.text || place.types?.[0] || 'cafe',
+  address: place.formattedAddress || 'Address unavailable',
+  latitude: place.location?.latitude,
+  longitude: place.location?.longitude,
+  opening_hours: place.regularOpeningHours?.weekdayDescriptions?.join(', ') || null,
+  is_open: place.currentOpeningHours?.openNow ?? null,
+  website: place.websiteUri || null,
+  rating: place.rating || null,
+  total_ratings: place.userRatingCount || null,
+  distance: getDistanceMeters(latitude, longitude, place.location?.latitude, place.location?.longitude)
+}))
 
     const quickStopTypes = [
   'fast_food_restaurant',
@@ -84,7 +95,9 @@ export default async function handler(req, res) {
   'supermarket'
 ]
 
-const filteredPlaces = places.filter(place => {
+const openPlaces = places.filter(place => place.is_open !== false)
+
+const filteredPlaces = openPlaces.filter(place => {
   if (situation === 'Quick 30 minutes') return true
   return !quickStopTypes.some(type =>
     place.type?.toLowerCase().includes(type) ||
