@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   const placeSummary = places.slice(0, 15).map((p, i) =>
   `${i + 1}. ${p.name} (${p.type})${p.rating ? ', rating: ' + p.rating + '/5' : ''}${p.opening_hours ? ', hours: ' + p.opening_hours : ''}${p.address !== 'Address unavailable' ? ', address: ' + p.address : ''}`
 ).join('\n')
-const prompt = `You are helping someone find the perfect third space — a place to spend time outside home or work.
+const prompt = `You are helping someone find the perfect third space — a place to spend time outside home or work. Pick the 5 best matches for this situation.
 
 User's situation: ${situation}
 
@@ -28,7 +28,7 @@ Strict selection rules:
 - A third space must allow lingering — not a quick stop
 - Match rating weight: prefer places with 4.0+ rating and 400+ reviews over lower rated places
 - Only recommend places from the list using their exact names
-- If fewer than 3 places genuinely fit, return only the ones that do
+- If fewer than 5 places genuinely fit, return only the ones that do
 
 Respond ONLY with valid JSON in this exact format, no other text:
 {
@@ -49,7 +49,7 @@ Respond ONLY with valid JSON in this exact format, no other text:
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 500,
+        max_tokens: 800,
         temperature: 0.7,
         messages: [{ role: 'user', content: prompt }]
       })
