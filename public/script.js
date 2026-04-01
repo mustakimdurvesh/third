@@ -358,3 +358,25 @@ async function savePlace(rec, btn) {
     btn.style.color = '#19bd52'
   }
 }
+
+document.getElementById('forgotBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim()
+  if (!email) {
+    document.getElementById('authError').textContent = 'Enter your email first.'
+    document.getElementById('authError').style.color = '#e53e3e'
+    document.getElementById('authError').classList.remove('hidden')
+    return
+  }
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://third-umber.vercel.app'
+  })
+  const authError = document.getElementById('authError')
+  authError.classList.remove('hidden')
+  if (error) {
+    authError.textContent = error.message
+    authError.style.color = '#e53e3e'
+  } else {
+    authError.textContent = 'Password reset email sent.'
+    authError.style.color = '#1db954'
+  }
+})
