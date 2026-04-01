@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentUser = session.user
       document.getElementById('userLabel').textContent = session.user.email.split('@')[0]
       document.getElementById('authBtn').textContent = 'Sign out'
+      document.getElementById('authPanel').classList.add('hidden') //fix for hiding signin banner after login
     }
   })
 
@@ -267,9 +268,9 @@ function displayResults(recommendations, allPlaces) {
     card.innerHTML = `
   <div class="result-header-row">
     <div class="result-name">${rec.name}</div>
-    <div style="display:flex; gap:6px; align-items:center;">
-      <span class="open-badge">Open now</span>
-      <button class="save-btn" data-index="${recommendations.indexOf(rec)}">♡</button>
+    <div class="result-badges">
+      <span class="open-badge">open</span>
+      <button class="save-btn">♡</button>
     </div>
   </div>
   <div class="result-reason">${rec.reason}</div>
@@ -277,10 +278,10 @@ function displayResults(recommendations, allPlaces) {
     <span class="result-badge">${rec.type || 'cafe'}</span>
     ${rec.rating ? `<span>★ ${rec.rating}</span>` : ''}
     ${distanceText ? `<span>${distanceText}</span>` : ''}
-    ${rec.opening_hours ? `<span>${rec.opening_hours.split(',')[0]}</span>` : ''}
   </div>
+  ${rec.opening_hours ? `<div style="font-size:0.65rem;font-family:var(--mono);color:#383838;margin-bottom:7px;">${rec.opening_hours.split(',')[0]}</div>` : ''}
   <a class="maps-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rec.name + ' ' + (rec.address || ''))}" target="_blank" onclick="event.stopPropagation()">
-    Open in Google Maps →
+    directions →
   </a>
 `
 
