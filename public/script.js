@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (recData.recommendations?.length) {
       displayResults(recData.recommendations, lastPlaces)
       recData.recommendations.forEach(r => shownPlaceNames.push(r.name))
+      document.getElementById('surpriseBtn').classList.remove('hidden') //fix for signin fail
     } else {
       showError('No more new places found nearby.')
     }
@@ -314,11 +315,11 @@ function displayResults(recommendations, allPlaces) {
 
   results.classList.remove('hidden')
 }
-
+/* //fix for signin fail
 displayResults(recData.recommendations, placesData.places)
 recData.recommendations.forEach(r => shownPlaceNames.push(r.name))
 document.getElementById('surpriseBtn').classList.remove('hidden')
-
+*/
 function clearMarkers() {
   markers.forEach(m => m.remove())
   markers = []
