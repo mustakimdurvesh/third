@@ -185,20 +185,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearMarkers()
 
     try {
-      const recRes = await fetch('/api/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          places: lastPlaces,
-          situation: lastSituation,
-          exclude: shownPlaceNames.join(', ')
-        })
-      })
-      const recData = await recRes.json()
+      const recData = await fetchRecommendations(lastPlaces, lastSituation, shownPlaceNames.join(', '))
+      const recommendations = recData.recommendations || []
 
-      if (recData.recommendations?.length) {
-        displayResults(recData.recommendations)
-        recData.recommendations.forEach((recommendation) => shownPlaceNames.push(recommendation.name))
+      if (recommendations.length) {
+        displayResults(recommendations)
+        recommendations.forEach((recommendation) => shownPlaceNames.push(recommendation.name))
       } else {
         showError('No more new places found nearby.')
       }
@@ -467,27 +459,19 @@ function setupFindButton() {
         return
       }
 
-      const recRes = await fetch('/api/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ places: lastPlaces, situation })
-      })
-      const recData = await recRes.json()
-
-      if (!recRes.ok) {
-        throw new Error(recData.error || 'Could not generate recommendations.')
-      }
+      const recData = await fetchRecommendations(lastPlaces, situation)
+      const recommendations = recData.recommendations || []
 
       skeleton.classList.add('hidden')
 
-      if (!recData.recommendations?.length) {
+      if (!recommendations.length) {
         showError('Could not find a match. Try different options.')
         return
       }
 
-      cachePlacePhotos(recData.recommendations)
-      displayResults(recData.recommendations)
-      recData.recommendations.forEach((recommendation) => shownPlaceNames.push(recommendation.name))
+      cachePlacePhotos(recommendations)
+      displayResults(recommendations)
+      recommendations.forEach((recommendation) => shownPlaceNames.push(recommendation.name))
       surpriseBtn.classList.remove('hidden')
     } catch (error) {
       skeleton.classList.add('hidden')
@@ -499,6 +483,95 @@ function setupFindButton() {
   })
 }
 
+async function fetchRecommendations(places, situation, exclude = '') {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 12000)
+
+  try {
+    const recRes = await fetch('/api/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ places, situation, exclude }),
+      signal: controller.signal
+    })
+
+    const recData = await recRes.json().catch(() => ({}))
+
+    if (!recRes.ok) {
+      throw new Error(recData.error || 'Could not generate recommendations.')
+    }
+
+    return recData
+  } catch (error) {
+    console.warn('Falling back to local recommendations:', error)
+    return { recommendations: pickFallbackRecommendations(places, situation, exclude) }
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
+function pickFallbackRecommendations(places, situation, exclude = '') {
+  const excludedNames = new Set(
+    String(exclude || '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean)
+  )
+  const need = String(situation || '').toLowerCase()
+
+  return [...places]
+    .filter((place) => !excludedNames.has(place.name))
+    .map((place) => ({
+      ...place,
+      _score: scorePlace(place, need),
+      reason: buildFallbackReason(place, need)
+    }))
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 3)
+    .map(({ _score, ...place }) => place)
+}
+
+function scorePlace(place, need) {
+  let score = 0
+  const type = String(place.primary_type || place.type || '').toLowerCase()
+  const rating = Number(place.rating) || 0
+  const distance = Number(place.distance) || 0
+  const reviews = Number(place.total_ratings) || 0
+
+  score += rating * 20
+  score += Math.min(reviews / 40, 12)
+  score += Math.max(0, 18 - distance / 120)
+
+  if (type.includes('cafe') || type.includes('coffee')) score += 18
+  if (type.includes('bakery')) score += 8
+  if (type.includes('restaurant')) score += need.includes('food') ? 10 : -6
+  if (type.includes('bar') || type.includes('pub') || type.includes('wine')) score += need.includes('drink') ? 12 : -4
+  if (need.includes('work') && (type.includes('cafe') || type.includes('coffee'))) score += 12
+  if (need.includes('chill') && place.is_open !== false) score += 6
+  if (need.includes('quick') && distance < 900) score += 8
+
+  return score
+}
+
+function buildFallbackReason(place, need) {
+  const typeMeta = getTypeMeta(place)
+  const ratingText = place.rating ? `${place.rating}` : 'a solid'
+  const distanceText = place.distance ? formatDistance(place.distance) : 'nearby'
+
+  if (need.includes('work')) {
+    return `${typeMeta.label} spot with a ${ratingText} rating and an easy ${distanceText} trip for settling in.`
+  }
+
+  if (need.includes('drink')) {
+    return `Good fit for drinks and conversation with a ${ratingText} rating and a ${distanceText} trip.`
+  }
+
+  if (need.includes('food')) {
+    return `Comfortable option for hanging out over food, with a ${ratingText} rating and a ${distanceText} trip.`
+  }
+
+  return `Easy place to spend time, with a ${ratingText} rating and a ${distanceText} trip.`
+}
 function displayResults(recommendations) {
   const results = document.getElementById('results')
   results.innerHTML = ''
@@ -781,5 +854,8 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
+
+
 
 
