@@ -51,7 +51,7 @@ Strict selection rules:
 - A third space must allow lingering, not a quick stop
 - Match rating weight: prefer places with 4.0+ rating and 400+ reviews over lower rated places
 - Only recommend places from the list using their exact names
-- If fewer than 5 places genuinely fit, return only the ones that do
+- If fewer than 3 places genuinely fit, return only the ones that do
 
 Respond ONLY with valid JSON in this exact format, no other text:
 {
