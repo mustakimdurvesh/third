@@ -1,20 +1,34 @@
+function buildRecommendation(place, reason) {
+  return {
+    name: place.name,
+    reason,
+    type: place.type,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    opening_hours: place.opening_hours,
+    rating: place.rating,
+    distance: place.distance,
+    address: place.address
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-
   const { places, situation, exclude } = req.body
 
-  if (!places || !situation) {
+  if (!Array.isArray(places) || !places.length || !situation) {
     return res.status(400).json({ error: 'Places and situation required' })
   }
 
   try {
- const placeSummary = places.slice(0, 20).map((p, i) =>
-  `${i + 1}. ${p.name} (${p.type})${p.rating ? ', rating: ' + p.rating + '/5 (' + p.total_ratings + ' reviews)' : ''}${p.distance ? ', distance: ' + p.distance + 'm' : ''}${p.opening_hours ? ', hours: ' + p.opening_hours.split(',')[0] : ''}`
-).join('\n')
-const prompt = `You are helping someone find the perfect third space — a place to spend time outside home or work. Pick the 5 best matches for this situation.
+    const placeSummary = places.slice(0, 20).map((place, index) =>
+      `${index + 1}. ${place.name} (${place.type})${place.rating ? ', rating: ' + place.rating + '/5 (' + place.total_ratings + ' reviews)' : ''}${place.distance ? ', distance: ' + place.distance + 'm' : ''}${place.opening_hours ? ', hours: ' + place.opening_hours.split(',')[0] : ''}`
+    ).join('\n')
+
+    const prompt = `You are helping someone find the perfect third space, a place to spend time outside home or work. Pick the 5 best matches for this situation.
 
 User's situation: ${situation}
 
@@ -28,7 +42,7 @@ Strict selection rules:
 - Coffee shops and cafes with good ratings should be top priority for any situation involving work or solo time
 - NEVER recommend sweet shops, dessert shops, or fast food as a third space
 - NEVER recommend a restaurant over a coffee shop if a coffee shop is available
-- A third space must allow lingering — not a quick stop
+- A third space must allow lingering, not a quick stop
 - Match rating weight: prefer places with 4.0+ rating and 400+ reviews over lower rated places
 - Only recommend places from the list using their exact names
 - If fewer than 5 places genuinely fit, return only the ones that do
@@ -61,7 +75,15 @@ Respond ONLY with valid JSON in this exact format, no other text:
     const data = await response.json()
     console.log('Groq status:', response.status)
     console.log('Groq response:', JSON.stringify(data))
-    const text = data.choices[0].message.content.trim()
+
+    if (!response.ok) {
+      return res.status(response.status || 500).json({ error: data.error?.message || 'Recommendation request failed' })
+    }
+
+    const text = data.choices?.[0]?.message?.content?.trim()
+    if (!text) {
+      return res.status(500).json({ error: 'Empty AI response' })
+    }
 
     let parsed
     try {
@@ -70,27 +92,26 @@ Respond ONLY with valid JSON in this exact format, no other text:
       return res.status(500).json({ error: 'Could not parse AI response' })
     }
 
-  const recommendations = parsed.recommendations.map(rec => {
-  const place = places[rec.index - 1]
-  return {
-    name: rec.name,
-    reason: rec.reason,
-    type: place?.type,
-    latitude: place?.latitude,
-    longitude: place?.longitude,
-    opening_hours: place?.opening_hours,
-    rating: place?.rating,
-    distance: place?.distance,
-    address: place?.address
-  }
-})
+    const recommendations = (parsed.recommendations || [])
+      .map((recommendation) => {
+        const byIndex = Number.isInteger(recommendation.index)
+          ? places[recommendation.index - 1]
+          : null
+        const byName = places.find((place) => place.name === recommendation.name)
+        const matchedPlace = byIndex || byName
 
-    res.status(200).json({ recommendations })
+        if (!matchedPlace) {
+          return null
+        }
 
+        return buildRecommendation(matchedPlace, recommendation.reason)
+      })
+      .filter(Boolean)
+
+    return res.status(200).json({ recommendations })
   } catch (error) {
-  console.error('Recommend error:', error.message)
-  console.error('Recommend stack:', error.stack)
-  res.status(500).json({ error: error.message })
-
+    console.error('Recommend error:', error.message)
+    console.error('Recommend stack:', error.stack)
+    return res.status(500).json({ error: error.message })
   }
 }

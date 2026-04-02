@@ -8,24 +8,28 @@ let markers = []
 let shownPlaceNames = []
 let lastPlaces = []
 let lastSituation = ''
+const FALLBACK_LOCATION = { lat: 27.7172, lng: 85.324 }
 
 document.addEventListener('DOMContentLoaded', async () => {
   const mapEl = document.getElementById('map')
   const headerEl = document.getElementById('header')
   const panelEl = document.getElementById('panel')
 
-  const mapHeight = window.innerHeight -
-    headerEl.offsetHeight -
-    panelEl.offsetHeight
+  const mapHeight = window.innerHeight - headerEl.offsetHeight - panelEl.offsetHeight
   mapEl.style.height = mapHeight + 'px'
 
-  // Bug 2 fix — handle password reset token on load
   const hash = window.location.hash
   if (hash.includes('type=recovery')) {
     const params = new URLSearchParams(hash.slice(1))
     const accessToken = params.get('access_token')
-    if (accessToken) {
-      await supabase.auth.setSession({ access_token: accessToken, refresh_token: '' })
+    const refreshToken = params.get('refresh_token')
+
+    if (accessToken && refreshToken) {
+      await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      })
+
       const newPassword = prompt('Enter your new password:')
       if (newPassword) {
         const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -36,6 +40,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           window.location.hash = ''
         }
       }
+    } else {
+      alert('Your password reset link is incomplete. Please request a new one.')
     }
   }
 
@@ -46,34 +52,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       initMap(userLat, userLng)
     },
     () => {
-      initMap(userLat, userLng)
+      initMap(FALLBACK_LOCATION.lat, FALLBACK_LOCATION.lng)
+      showError('Enable location access to search nearby places.')
     }
   )
 
   setupChips()
   setupFindButton()
 
-  // Auth state handler
   supabase.auth.onAuthStateChange((event, session) => {
     currentUser = session?.user || null
     const userLabel = document.getElementById('userLabel')
     const authBtn = document.getElementById('authBtn')
     const authPanel = document.getElementById('authPanel')
+    const authError = document.getElementById('authError')
+
     if (currentUser) {
-      userLabel.textContent = currentUser.email.split('@')[0]
+      userLabel.textContent = currentUser.email?.split('@')[0] || ''
       authBtn.textContent = 'Sign out'
-      authPanel.classList.add('hidden')  // Bug 1 fix
+      authPanel.classList.add('hidden')
+      authError.textContent = ''
+      authError.classList.add('hidden')
     } else {
       userLabel.textContent = ''
       authBtn.textContent = 'Sign in'
-      authPanel.classList.add('hidden')  // Bug 1 fix — also hide on signout
+      authPanel.classList.add('hidden')
     }
   })
 
   supabase.auth.getSession().then(({ data: { session } }) => {
     if (session?.user) {
       currentUser = session.user
-      document.getElementById('userLabel').textContent = session.user.email.split('@')[0]
+      document.getElementById('userLabel').textContent = session.user.email?.split('@')[0] || ''
       document.getElementById('authBtn').textContent = 'Sign out'
       document.getElementById('authPanel').classList.add('hidden')
     }
@@ -83,7 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentUser) {
       await supabase.auth.signOut()
     } else {
-      // Bug 1 fix — was toggle, now explicitly removes hidden
       document.getElementById('authPanel').classList.remove('hidden')
     }
   })
@@ -93,9 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const password = document.getElementById('passwordInput').value.trim()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      document.getElementById('authError').textContent = error.message
-      document.getElementById('authError').style.color = '#e53e3e'
-      document.getElementById('authError').classList.remove('hidden')
+      showAuthMessage(error.message, '#e53e3e')
     }
   })
 
@@ -104,77 +111,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     const password = document.getElementById('passwordInput').value.trim()
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) {
-      document.getElementById('authError').textContent = error.message
-      document.getElementById('authError').style.color = '#e53e3e'
-      document.getElementById('authError').classList.remove('hidden')
+      showAuthMessage(error.message, '#e53e3e')
     } else {
-      document.getElementById('authError').textContent = 'Check your email to confirm.'
-      document.getElementById('authError').style.color = '#1db954'
-      document.getElementById('authError').classList.remove('hidden')
+      showAuthMessage('Check your email to confirm.', '#1db954')
     }
   })
 
- document.getElementById('forgotBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('forgotBtn')
-  btn.disabled = true
-  btn.textContent = 'Email sent — wait 60s'
+  document.getElementById('forgotBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('forgotBtn')
+    btn.disabled = true
+    btn.textContent = 'Email sent - wait 60s'
 
-  setTimeout(() => {
-    btn.disabled = false
-    btn.textContent = 'Forgot password?'
-  }, 60000)
+    setTimeout(() => {
+      btn.disabled = false
+      btn.textContent = 'Forgot password?'
+    }, 60000)
 
-  const email = document.getElementById('emailInput').value.trim()
-  if (!email) {
-    document.getElementById('authError').textContent = 'Enter your email first.'
-    document.getElementById('authError').style.color = '#e53e3e'
-    document.getElementById('authError').classList.remove('hidden')
-    btn.disabled = false
-    btn.textContent = 'Forgot password?'
-    return
-  }
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://third-umber.vercel.app'
+    const email = document.getElementById('emailInput').value.trim()
+    if (!email) {
+      showAuthMessage('Enter your email first.', '#e53e3e')
+      btn.disabled = false
+      btn.textContent = 'Forgot password?'
+      return
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    })
+
+    if (error) {
+      showAuthMessage(error.message, '#e53e3e')
+    } else {
+      showAuthMessage('Password reset email sent.', '#1db954')
+    }
   })
-  const authError = document.getElementById('authError')
-  authError.classList.remove('hidden')
-  if (error) {
-    authError.textContent = error.message
-    authError.style.color = '#e53e3e'
-  } else {
-    authError.textContent = 'Password reset email sent.'
-    authError.style.color = '#1db954'
-  }
-})
 
-  // Bug 3 fix — surprise button listener stays, but button starts hidden
-  // and is only revealed after a successful search (inside setupFindButton)
   document.getElementById('surpriseBtn').addEventListener('click', async () => {
     const surpriseBtn = document.getElementById('surpriseBtn')
     surpriseBtn.textContent = 'Finding somewhere new...'
     surpriseBtn.disabled = true
     clearMarkers()
 
-    const recRes = await fetch('/api/recommend', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        places: lastPlaces,
-        situation: lastSituation,
-        exclude: shownPlaceNames.join(', ')
+    try {
+      const recRes = await fetch('/api/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          places: lastPlaces,
+          situation: lastSituation,
+          exclude: shownPlaceNames.join(', ')
+        })
       })
-    })
-    const recData = await recRes.json()
+      const recData = await recRes.json()
 
-    if (recData.recommendations?.length) {
-      displayResults(recData.recommendations, lastPlaces)
-      recData.recommendations.forEach(r => shownPlaceNames.push(r.name))
-    } else {
-      showError('No more new places found nearby.')
+      if (recData.recommendations?.length) {
+        displayResults(recData.recommendations)
+        recData.recommendations.forEach((recommendation) => shownPlaceNames.push(recommendation.name))
+      } else {
+        showError('No more new places found nearby.')
+      }
+    } catch (error) {
+      showError('Something went wrong while finding a new place.')
+    } finally {
+      surpriseBtn.textContent = 'Take me somewhere different ->'
+      surpriseBtn.disabled = false
     }
-
-    surpriseBtn.textContent = 'Take me somewhere different →'
-    surpriseBtn.disabled = false
   })
 })
 
@@ -194,10 +195,10 @@ function initMap(lat, lng) {
 }
 
 function setupChips() {
-  document.querySelectorAll('.chips').forEach(group => {
-    group.querySelectorAll('.chip').forEach(chip => {
+  document.querySelectorAll('.chips').forEach((group) => {
+    group.querySelectorAll('.chip').forEach((chip) => {
       chip.addEventListener('click', () => {
-        group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'))
+        group.querySelectorAll('.chip').forEach((button) => button.classList.remove('active'))
         chip.classList.add('active')
       })
     })
@@ -219,13 +220,18 @@ function setupFindButton() {
   const surpriseBtn = document.getElementById('surpriseBtn')
 
   findBtn.addEventListener('click', async () => {
+    if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
+      showError('Location is still unavailable. Please enable location access and try again.')
+      return
+    }
+
     const situation = getSituation()
 
     findBtn.disabled = true
     findBtn.textContent = 'Finding...'
     results.classList.add('hidden')
     results.innerHTML = ''
-    surpriseBtn.classList.add('hidden')  // Bug 3 fix — hide on new search
+    surpriseBtn.classList.add('hidden')
     skeleton.classList.remove('hidden')
     clearMarkers()
 
@@ -241,11 +247,15 @@ function setupFindButton() {
       })
       const placesData = await placesRes.json()
 
-      lastPlaces = placesData.places
+      if (!placesRes.ok) {
+        throw new Error(placesData.error || 'Could not fetch nearby places.')
+      }
+
+      lastPlaces = placesData.places || []
       lastSituation = situation
       shownPlaceNames = []
 
-      if (!placesData.places?.length) {
+      if (!lastPlaces.length) {
         skeleton.classList.add('hidden')
         showError('No open places found nearby right now.')
         return
@@ -254,9 +264,13 @@ function setupFindButton() {
       const recRes = await fetch('/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ places: placesData.places, situation })
+        body: JSON.stringify({ places: lastPlaces, situation })
       })
       const recData = await recRes.json()
+
+      if (!recRes.ok) {
+        throw new Error(recData.error || 'Could not generate recommendations.')
+      }
 
       skeleton.classList.add('hidden')
 
@@ -265,13 +279,12 @@ function setupFindButton() {
         return
       }
 
-      displayResults(recData.recommendations, placesData.places)
-      recData.recommendations.forEach(r => shownPlaceNames.push(r.name))
-      surpriseBtn.classList.remove('hidden')  // Bug 3 fix — only show after results
-
+      displayResults(recData.recommendations)
+      recData.recommendations.forEach((recommendation) => shownPlaceNames.push(recommendation.name))
+      surpriseBtn.classList.remove('hidden')
     } catch (error) {
       skeleton.classList.add('hidden')
-      showError('Something went wrong. Please try again.')
+      showError(error.message || 'Something went wrong. Please try again.')
     } finally {
       findBtn.disabled = false
       findBtn.textContent = 'Find my place'
@@ -279,7 +292,7 @@ function setupFindButton() {
   })
 }
 
-function displayResults(recommendations, allPlaces) {
+function displayResults(recommendations) {
   const results = document.getElementById('results')
   results.innerHTML = ''
 
@@ -297,36 +310,36 @@ function displayResults(recommendations, allPlaces) {
         <div class="result-name">${rec.name}</div>
         <div class="result-badges">
           <span class="open-badge">open</span>
-          <button class="save-btn">♡</button>
+          <button class="save-btn">Save</button>
         </div>
       </div>
       <div class="result-reason">${rec.reason}</div>
       <div class="result-meta">
         <span class="result-badge">${rec.type || 'cafe'}</span>
-        ${rec.rating ? `<span>★ ${rec.rating}</span>` : ''}
+        ${rec.rating ? `<span>Rating ${rec.rating}</span>` : ''}
         ${distanceText ? `<span>${distanceText}</span>` : ''}
       </div>
       ${rec.opening_hours ? `<div style="font-size:0.65rem;font-family:var(--mono);color:#383838;margin-bottom:7px;">${rec.opening_hours.split(',')[0]}</div>` : ''}
-      <a class="maps-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rec.name + ' ' + (rec.address || ''))}" target="_blank" onclick="event.stopPropagation()">
-        directions →
+      <a class="maps-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rec.name + ' ' + (rec.address || ''))}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">
+        directions ->
       </a>
     `
 
     const saveBtn = card.querySelector('.save-btn')
-    saveBtn.addEventListener('click', async (e) => {
-      e.stopPropagation()
+    saveBtn.addEventListener('click', async (event) => {
+      event.stopPropagation()
       await savePlace(rec, saveBtn)
     })
 
     card.addEventListener('click', () => {
-      if (rec.latitude && rec.longitude) {
+      if (Number.isFinite(rec.latitude) && Number.isFinite(rec.longitude)) {
         map.flyTo({ center: [rec.longitude, rec.latitude], zoom: 16 })
       }
     })
 
     results.appendChild(card)
 
-    if (rec.latitude && rec.longitude) {
+    if (Number.isFinite(rec.latitude) && Number.isFinite(rec.longitude)) {
       const marker = new maplibregl.Marker({ color: '#19bd52' })
         .setLngLat([rec.longitude, rec.latitude])
         .addTo(map)
@@ -338,7 +351,7 @@ function displayResults(recommendations, allPlaces) {
 }
 
 function clearMarkers() {
-  markers.forEach(m => m.remove())
+  markers.forEach((marker) => marker.remove())
   markers = []
 }
 
@@ -348,6 +361,13 @@ function showError(message) {
   results.classList.remove('hidden')
   document.getElementById('findBtn').disabled = false
   document.getElementById('findBtn').textContent = 'Find my place'
+}
+
+function showAuthMessage(message, color) {
+  const authError = document.getElementById('authError')
+  authError.textContent = message
+  authError.style.color = color
+  authError.classList.remove('hidden')
 }
 
 async function savePlace(rec, btn) {
@@ -369,7 +389,7 @@ async function savePlace(rec, btn) {
   })
 
   if (!error) {
-    btn.textContent = '♥'
+    btn.textContent = 'Saved'
     btn.style.color = '#19bd52'
   }
 }
