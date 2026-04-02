@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       `${index + 1}. ${place.name} (${place.type})${place.rating ? ', rating: ' + place.rating + '/5 (' + place.total_ratings + ' reviews)' : ''}${place.distance ? ', distance: ' + place.distance + 'm' : ''}${place.opening_hours ? ', hours: ' + place.opening_hours[0] : ''}`
     ).join('\n')
 
-    const prompt = `You are helping someone find the perfect third space, a place to spend time outside home or work. Pick the 5 best matches for this situation.
+    const prompt = `You are helping someone find the perfect third space, a place to spend time outside home or work. Pick the 3 best matches for this situation.
 
 User's situation: ${situation}
 
