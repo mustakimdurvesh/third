@@ -3,12 +3,18 @@ function buildRecommendation(place, reason) {
     name: place.name,
     reason,
     type: place.type,
+    primary_type: place.primary_type,
+    types: place.types,
     latitude: place.latitude,
     longitude: place.longitude,
     opening_hours: place.opening_hours,
+    current_opening_hours: place.current_opening_hours,
+    is_open: place.is_open,
     rating: place.rating,
     distance: place.distance,
-    address: place.address
+    address: place.address,
+    photo_url: place.photo_url,
+    photo_author_attributions: place.photo_author_attributions
   }
 }
 
@@ -25,7 +31,7 @@ export default async function handler(req, res) {
 
   try {
     const placeSummary = places.slice(0, 20).map((place, index) =>
-      `${index + 1}. ${place.name} (${place.type})${place.rating ? ', rating: ' + place.rating + '/5 (' + place.total_ratings + ' reviews)' : ''}${place.distance ? ', distance: ' + place.distance + 'm' : ''}${place.opening_hours ? ', hours: ' + place.opening_hours.split(',')[0] : ''}`
+      `${index + 1}. ${place.name} (${place.type})${place.rating ? ', rating: ' + place.rating + '/5 (' + place.total_ratings + ' reviews)' : ''}${place.distance ? ', distance: ' + place.distance + 'm' : ''}${place.opening_hours ? ', hours: ' + place.opening_hours[0] : ''}`
     ).join('\n')
 
     const prompt = `You are helping someone find the perfect third space, a place to spend time outside home or work. Pick the 5 best matches for this situation.

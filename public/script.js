@@ -9,7 +9,17 @@ let shownPlaceNames = []
 let lastPlaces = []
 let lastSituation = ''
 let savedPlacesLoadedForUserId = null
+let savedPlaceNames = new Set()
 const FALLBACK_LOCATION = { lat: 27.7172, lng: 85.324 }
+const TYPE_META = {
+  cafe: { icon: '?', label: 'Cafe' },
+  coffee_shop: { icon: '?', label: 'Coffee' },
+  restaurant: { icon: '??', label: 'Restaurant' },
+  bakery: { icon: '??', label: 'Bakery' },
+  bar: { icon: '??', label: 'Bar' },
+  wine_bar: { icon: '??', label: 'Wine bar' },
+  pub: { icon: '??', label: 'Pub' }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   const mapEl = document.getElementById('map')
@@ -63,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupChips()
   setupFindButton()
 
-  supabase.auth.onAuthStateChange((event, session) => {
+  supabase.auth.onAuthStateChange(async (event, session) => {
     currentUser = session?.user || null
     const userLabel = document.getElementById('userLabel')
     const userMenu = document.getElementById('userMenu')
@@ -80,23 +90,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       authError.classList.add('hidden')
       if (savedPlacesLoadedForUserId !== currentUser.id) {
         resetSavedPlacesDropdown()
+        await loadSavedPlaces({ renderDropdown: false })
       }
+      refreshSaveButtons()
     } else {
       userLabel.textContent = ''
       userMenu.classList.add('hidden')
       authBtn.textContent = 'Sign in'
       authPanel.classList.add('hidden')
       resetSavedPlacesDropdown()
+      savedPlaceNames = new Set()
+      refreshSaveButtons()
     }
   })
 
-  supabase.auth.getSession().then(({ data: { session } }) => {
+  supabase.auth.getSession().then(async ({ data: { session } }) => {
     if (session?.user) {
       currentUser = session.user
       document.getElementById('userLabel').textContent = session.user.email?.split('@')[0] || ''
       document.getElementById('userMenu').classList.remove('hidden')
       document.getElementById('authBtn').textContent = 'Sign out'
       document.getElementById('authPanel').classList.add('hidden')
+      await loadSavedPlaces({ renderDropdown: false })
+      refreshSaveButtons()
     }
   })
 
@@ -205,7 +221,7 @@ function setupUserMenu() {
     const willOpen = document.getElementById('savedPlacesDropdown').classList.contains('hidden')
     if (willOpen) {
       openSavedPlacesDropdown()
-      await loadSavedPlaces()
+      await loadSavedPlaces({ renderDropdown: true })
     } else {
       closeSavedPlacesDropdown()
     }
@@ -220,27 +236,38 @@ function setupUserMenu() {
   })
 }
 
-async function loadSavedPlaces() {
+async function loadSavedPlaces({ renderDropdown = true } = {}) {
   if (!currentUser) {
-    return
+    return []
   }
 
   const content = document.getElementById('savedPlacesContent')
-  content.innerHTML = '<div class="saved-dropdown-state">Loading...</div>'
+  if (renderDropdown) {
+    content.innerHTML = '<div class="saved-dropdown-state">Loading...</div>'
+  }
 
   const { data, error } = await supabase
     .from('saved_places')
-    .select('name, type, address, latitude, longitude, rating, distance')
+    .select('id, name, type, address, latitude, longitude, rating, distance')
     .eq('user_id', currentUser.id)
     .order('name', { ascending: true })
 
   if (error) {
-    content.innerHTML = '<div class="saved-dropdown-state">Could not load saved places.</div>'
-    return
+    if (renderDropdown) {
+      content.innerHTML = '<div class="saved-dropdown-state">Could not load saved places.</div>'
+    }
+    return []
   }
 
+  const places = data || []
   savedPlacesLoadedForUserId = currentUser.id
-  renderSavedPlaces(data || [])
+  savedPlaceNames = new Set(places.map((place) => place.name))
+
+  if (renderDropdown) {
+    renderSavedPlaces(places)
+  }
+
+  return places
 }
 
 function renderSavedPlaces(places) {
@@ -254,35 +281,72 @@ function renderSavedPlaces(places) {
   content.innerHTML = ''
 
   places.forEach((place) => {
-    const item = document.createElement('button')
-    item.type = 'button'
+    const item = document.createElement('div')
     item.className = 'saved-place-item'
 
+    const details = document.createElement('button')
+    details.type = 'button'
+    details.className = 'saved-place-button'
+
     const metaBits = []
-    if (place.type) {
-      metaBits.push(place.type)
-    }
+    const typeMeta = getTypeMeta(place)
+    metaBits.push(`${typeMeta.icon} ${typeMeta.label}`)
     if (place.rating) {
-      metaBits.push(`Rating ${place.rating}`)
+      metaBits.push(place.rating)
     }
     if (place.distance) {
-      metaBits.push(place.distance < 1000 ? `${place.distance}m away` : `${(place.distance / 1000).toFixed(1)}km away`)
+      metaBits.push(formatDistance(place.distance))
     }
 
-    item.innerHTML = `
+    details.innerHTML = `
       <div class="saved-place-name">${place.name}</div>
       <div class="saved-place-meta">${metaBits.map((bit) => `<span>${bit}</span>`).join('')}</div>
     `
 
-    item.addEventListener('click', () => {
+    details.addEventListener('click', () => {
       closeSavedPlacesDropdown()
       if (Number.isFinite(place.latitude) && Number.isFinite(place.longitude) && map) {
         map.flyTo({ center: [place.longitude, place.latitude], zoom: 16 })
       }
     })
 
+    const removeButton = document.createElement('button')
+    removeButton.type = 'button'
+    removeButton.className = 'saved-place-remove'
+    removeButton.textContent = 'Remove'
+    removeButton.addEventListener('click', async (event) => {
+      event.stopPropagation()
+      removeButton.disabled = true
+      removeButton.textContent = 'Removing...'
+      await removeSavedPlace(place.id)
+    })
+
+    item.appendChild(details)
+    item.appendChild(removeButton)
     content.appendChild(item)
   })
+}
+
+async function removeSavedPlace(placeId) {
+  if (!currentUser || !placeId) {
+    return
+  }
+
+  const { error } = await supabase
+    .from('saved_places')
+    .delete()
+    .eq('id', placeId)
+    .eq('user_id', currentUser.id)
+
+  if (error) {
+    const content = document.getElementById('savedPlacesContent')
+    content.insertAdjacentHTML('afterbegin', '<div class="saved-dropdown-state">Could not remove saved place.</div>')
+    return
+  }
+
+  savedPlacesLoadedForUserId = null
+  await loadSavedPlaces({ renderDropdown: true })
+  refreshSaveButtons()
 }
 
 function openSavedPlacesDropdown() {
@@ -349,6 +413,10 @@ function setupFindButton() {
     if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
       showError('Location is still unavailable. Please enable location access and try again.')
       return
+    }
+
+    if (currentUser && savedPlacesLoadedForUserId !== currentUser.id) {
+      await loadSavedPlaces({ renderDropdown: false })
     }
 
     const situation = getSituation()
@@ -423,34 +491,39 @@ function displayResults(recommendations) {
   results.innerHTML = ''
 
   recommendations.forEach((rec) => {
-    const distanceText = rec.distance
-      ? rec.distance < 1000
-        ? `${rec.distance}m away`
-        : `${(rec.distance / 1000).toFixed(1)}km away`
-      : ''
-
-    const card = document.createElement('div')
+    const typeMeta = getTypeMeta(rec)
+    const timingText = getTimingText(rec)
+    const isSaved = currentUser && savedPlaceNames.has(rec.name)
+    const card = document.createElement('article')
     card.className = 'result-card'
+
     card.innerHTML = `
-      <div class="result-header-row">
-        <div class="result-name">${rec.name}</div>
-        <div class="result-badges">
-          <button class="save-btn">Save</button>
+      <div class="result-media${rec.photo_url ? '' : ' no-photo'}">
+        ${rec.photo_url ? `<img class="result-image" src="${rec.photo_url}" alt="${rec.name}">` : `<div class="result-image-placeholder">${typeMeta.icon}</div>`}
+      </div>
+      <div class="result-content">
+        <div class="result-header-row">
+          <div>
+            <div class="result-name">${rec.name}</div>
+            <div class="result-subline">${rec.reason}</div>
+          </div>
+          <button class="save-btn${isSaved ? ' saved' : ''}" data-place-name="${escapeAttribute(rec.name)}">${isSaved ? 'Saved' : 'Save'}</button>
+        </div>
+        <div class="result-chip-row">
+          <span class="result-pill type-pill">${typeMeta.icon} ${typeMeta.label}</span>
+          ${rec.rating ? `<span class="result-pill">${rec.rating}</span>` : ''}
+          ${rec.distance ? `<span class="result-pill">${formatDistance(rec.distance)}</span>` : ''}
+        </div>
+        ${timingText ? `<div class="result-timing">${timingText}</div>` : ''}
+        <div class="result-footer">
+          <div class="result-address">${rec.address || ''}</div>
+          <a class="maps-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rec.name + ' ' + (rec.address || ''))}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">Directions -></a>
         </div>
       </div>
-      <div class="result-reason">${rec.reason}</div>
-      <div class="result-meta">
-        <span class="result-badge">${rec.type || 'cafe'}</span>
-        ${rec.rating ? `<span>Rating ${rec.rating}</span>` : ''}
-        ${distanceText ? `<span>${distanceText}</span>` : ''}
-      </div>
-      ${rec.opening_hours ? `<div style="font-size:0.65rem;font-family:var(--mono);color:#383838;margin-bottom:7px;">${rec.opening_hours.split(',')[0]}</div>` : ''}
-      <a class="maps-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rec.name + ' ' + (rec.address || ''))}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">
-        directions ->
-      </a>
     `
 
     const saveBtn = card.querySelector('.save-btn')
+    updateSaveButtonState(saveBtn, isSaved)
     saveBtn.addEventListener('click', async (event) => {
       event.stopPropagation()
       await savePlace(rec, saveBtn)
@@ -473,6 +546,52 @@ function displayResults(recommendations) {
   })
 
   results.classList.remove('hidden')
+}
+
+function getTypeMeta(place) {
+  const typeKey = place.primary_type || place.type || 'cafe'
+  return TYPE_META[typeKey] || { icon: '??', label: place.type || 'Place' }
+}
+
+function getTimingText(place) {
+  const descriptions = place.current_opening_hours || place.opening_hours
+  const openNow = place.is_open
+
+  if (!Array.isArray(descriptions) || !descriptions.length) {
+    return openNow === true ? 'Open now' : ''
+  }
+
+  const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date())
+  const todayDescription = descriptions.find((line) => line.startsWith(todayName)) || descriptions[0]
+  const hoursText = (todayDescription.split(': ').slice(1).join(': ') || '').trim()
+
+  if (!hoursText || hoursText.toLowerCase() === 'closed') {
+    return openNow === false ? 'Closed now' : ''
+  }
+
+  if (openNow === true) {
+    const closePart = hoursText.split('–').pop()?.trim() || hoursText.split('-').pop()?.trim()
+    return closePart ? `Closes at ${closePart}` : 'Open now'
+  }
+
+  return `Hours today ${hoursText}`
+}
+
+function formatDistance(distance) {
+  return distance < 1000 ? `${distance}m` : `${(distance / 1000).toFixed(1)}km`
+}
+
+function refreshSaveButtons() {
+  document.querySelectorAll('.save-btn[data-place-name]').forEach((button) => {
+    const placeName = button.dataset.placeName
+    const isSaved = currentUser && savedPlaceNames.has(placeName)
+    updateSaveButtonState(button, isSaved)
+  })
+}
+
+function updateSaveButtonState(button, isSaved) {
+  button.textContent = isSaved ? 'Saved' : 'Save'
+  button.classList.toggle('saved', Boolean(isSaved))
 }
 
 function clearMarkers() {
@@ -501,6 +620,13 @@ async function savePlace(rec, btn) {
     return
   }
 
+  if (savedPlaceNames.has(rec.name)) {
+    updateSaveButtonState(btn, true)
+    return
+  }
+
+  btn.disabled = true
+
   const { error } = await supabase.from('saved_places').insert({
     user_id: currentUser.id,
     name: rec.name,
@@ -510,12 +636,18 @@ async function savePlace(rec, btn) {
     longitude: rec.longitude,
     rating: rec.rating,
     distance: rec.distance,
-    opening_hours: rec.opening_hours
+    opening_hours: Array.isArray(rec.opening_hours) ? rec.opening_hours.join(', ') : rec.opening_hours
   })
+
+  btn.disabled = false
 
   if (!error) {
     savedPlacesLoadedForUserId = null
-    btn.textContent = 'Saved'
-    btn.style.color = '#19bd52'
+    savedPlaceNames.add(rec.name)
+    updateSaveButtonState(btn, true)
   }
+}
+
+function escapeAttribute(value) {
+  return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
