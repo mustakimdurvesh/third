@@ -60,12 +60,123 @@ h1 {
   text-transform: lowercase;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
 .subtitle,
 #userLabel {
   font-family: var(--mono);
   font-size: 0.7rem;
   color: var(--text-muted);
   letter-spacing: 0.04em;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.user-menu-toggle:hover,
+.user-menu-toggle[aria-expanded="true"] {
+  border-color: var(--green-dim);
+  color: var(--text);
+}
+
+.user-menu-caret {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  color: var(--green);
+}
+
+.saved-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  max-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  z-index: 300;
+}
+
+.saved-dropdown-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.saved-dropdown-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 268px;
+  overflow-y: auto;
+}
+
+.saved-dropdown-state {
+  padding: 14px 12px;
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  color: var(--text-muted);
+}
+
+.saved-place-item {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.saved-place-item:last-child {
+  border-bottom: none;
+}
+
+.saved-place-item:hover {
+  background: #1c1c1c;
+}
+
+.saved-place-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.saved-place-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.64rem;
+  font-family: var(--mono);
+  color: var(--text-muted);
+}
+
+.saved-place-empty {
+  padding: 14px 12px;
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  color: var(--text-muted);
 }
 
 #authBtn {
@@ -445,4 +556,11 @@ button.secondary:hover {
 
 .maplibregl-canvas-container {
   position: relative !important;
+}
+
+@media (max-width: 640px) {
+  .saved-dropdown {
+    width: min(280px, calc(100vw - 24px));
+    right: -6px;
+  }
 }

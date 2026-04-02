@@ -13,8 +13,17 @@
   <div id="app">
     <div id="header">
       <h1>Third</h1>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <p class="subtitle" id="userLabel"></p>
+      <div class="header-actions">
+        <div id="userMenu" class="user-menu hidden">
+          <button id="userMenuToggle" class="user-menu-toggle" type="button" aria-expanded="false">
+            <span id="userLabel" class="subtitle"></span>
+            <span class="user-menu-caret">v</span>
+          </button>
+          <div id="savedPlacesDropdown" class="saved-dropdown hidden">
+            <div class="saved-dropdown-header">Saved places</div>
+            <div id="savedPlacesContent" class="saved-dropdown-content"></div>
+          </div>
+        </div>
         <button id="authBtn">Sign in</button>
       </div>
     </div>

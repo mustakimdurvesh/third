@@ -8,6 +8,7 @@ let markers = []
 let shownPlaceNames = []
 let lastPlaces = []
 let lastSituation = ''
+let savedPlacesLoadedForUserId = null
 const FALLBACK_LOCATION = { lat: 27.7172, lng: 85.324 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -17,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const mapHeight = window.innerHeight - headerEl.offsetHeight - panelEl.offsetHeight
   mapEl.style.height = mapHeight + 'px'
+
+  setupUserMenu()
 
   const hash = window.location.hash
   if (hash.includes('type=recovery')) {
@@ -63,20 +66,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   supabase.auth.onAuthStateChange((event, session) => {
     currentUser = session?.user || null
     const userLabel = document.getElementById('userLabel')
+    const userMenu = document.getElementById('userMenu')
     const authBtn = document.getElementById('authBtn')
     const authPanel = document.getElementById('authPanel')
     const authError = document.getElementById('authError')
 
     if (currentUser) {
       userLabel.textContent = currentUser.email?.split('@')[0] || ''
+      userMenu.classList.remove('hidden')
       authBtn.textContent = 'Sign out'
       authPanel.classList.add('hidden')
       authError.textContent = ''
       authError.classList.add('hidden')
+      if (savedPlacesLoadedForUserId !== currentUser.id) {
+        resetSavedPlacesDropdown()
+      }
     } else {
       userLabel.textContent = ''
+      userMenu.classList.add('hidden')
       authBtn.textContent = 'Sign in'
       authPanel.classList.add('hidden')
+      resetSavedPlacesDropdown()
     }
   })
 
@@ -84,6 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (session?.user) {
       currentUser = session.user
       document.getElementById('userLabel').textContent = session.user.email?.split('@')[0] || ''
+      document.getElementById('userMenu').classList.remove('hidden')
       document.getElementById('authBtn').textContent = 'Sign out'
       document.getElementById('authPanel').classList.add('hidden')
     }
@@ -91,6 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('authBtn').addEventListener('click', async () => {
     if (currentUser) {
+      closeSavedPlacesDropdown()
       await supabase.auth.signOut()
     } else {
       document.getElementById('authPanel').classList.remove('hidden')
@@ -178,6 +190,120 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   })
 })
+
+function setupUserMenu() {
+  const userMenu = document.getElementById('userMenu')
+  const toggle = document.getElementById('userMenuToggle')
+
+  toggle.addEventListener('click', async (event) => {
+    event.stopPropagation()
+
+    if (!currentUser) {
+      return
+    }
+
+    const willOpen = document.getElementById('savedPlacesDropdown').classList.contains('hidden')
+    if (willOpen) {
+      openSavedPlacesDropdown()
+      await loadSavedPlaces()
+    } else {
+      closeSavedPlacesDropdown()
+    }
+  })
+
+  userMenu.addEventListener('click', (event) => {
+    event.stopPropagation()
+  })
+
+  document.addEventListener('click', () => {
+    closeSavedPlacesDropdown()
+  })
+}
+
+async function loadSavedPlaces() {
+  if (!currentUser) {
+    return
+  }
+
+  const content = document.getElementById('savedPlacesContent')
+  content.innerHTML = '<div class="saved-dropdown-state">Loading...</div>'
+
+  const { data, error } = await supabase
+    .from('saved_places')
+    .select('name, type, address, latitude, longitude, rating, distance')
+    .eq('user_id', currentUser.id)
+    .order('name', { ascending: true })
+
+  if (error) {
+    content.innerHTML = '<div class="saved-dropdown-state">Could not load saved places.</div>'
+    return
+  }
+
+  savedPlacesLoadedForUserId = currentUser.id
+  renderSavedPlaces(data || [])
+}
+
+function renderSavedPlaces(places) {
+  const content = document.getElementById('savedPlacesContent')
+
+  if (!places.length) {
+    content.innerHTML = '<div class="saved-place-empty">No saved places yet.</div>'
+    return
+  }
+
+  content.innerHTML = ''
+
+  places.forEach((place) => {
+    const item = document.createElement('button')
+    item.type = 'button'
+    item.className = 'saved-place-item'
+
+    const metaBits = []
+    if (place.type) {
+      metaBits.push(place.type)
+    }
+    if (place.rating) {
+      metaBits.push(`Rating ${place.rating}`)
+    }
+    if (place.distance) {
+      metaBits.push(place.distance < 1000 ? `${place.distance}m away` : `${(place.distance / 1000).toFixed(1)}km away`)
+    }
+
+    item.innerHTML = `
+      <div class="saved-place-name">${place.name}</div>
+      <div class="saved-place-meta">${metaBits.map((bit) => `<span>${bit}</span>`).join('')}</div>
+    `
+
+    item.addEventListener('click', () => {
+      closeSavedPlacesDropdown()
+      if (Number.isFinite(place.latitude) && Number.isFinite(place.longitude) && map) {
+        map.flyTo({ center: [place.longitude, place.latitude], zoom: 16 })
+      }
+    })
+
+    content.appendChild(item)
+  })
+}
+
+function openSavedPlacesDropdown() {
+  const dropdown = document.getElementById('savedPlacesDropdown')
+  const toggle = document.getElementById('userMenuToggle')
+  dropdown.classList.remove('hidden')
+  toggle.setAttribute('aria-expanded', 'true')
+}
+
+function closeSavedPlacesDropdown() {
+  const dropdown = document.getElementById('savedPlacesDropdown')
+  const toggle = document.getElementById('userMenuToggle')
+  dropdown.classList.add('hidden')
+  toggle.setAttribute('aria-expanded', 'false')
+}
+
+function resetSavedPlacesDropdown() {
+  savedPlacesLoadedForUserId = null
+  closeSavedPlacesDropdown()
+  document.getElementById('savedPlacesContent').innerHTML = ''
+}
 
 function initMap(lat, lng) {
   map = new maplibregl.Map({
@@ -309,7 +435,6 @@ function displayResults(recommendations) {
       <div class="result-header-row">
         <div class="result-name">${rec.name}</div>
         <div class="result-badges">
-          <span class="open-badge">open</span>
           <button class="save-btn">Save</button>
         </div>
       </div>
@@ -389,6 +514,7 @@ async function savePlace(rec, btn) {
   })
 
   if (!error) {
+    savedPlacesLoadedForUserId = null
     btn.textContent = 'Saved'
     btn.style.color = '#19bd52'
   }
