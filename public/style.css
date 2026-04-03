@@ -54,6 +54,17 @@ html, body {
   z-index: 100;
 }
 
+.refresh-loader {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(29, 185, 84, 0.08);
+  color: var(--green);
+  font-size: 0.68rem;
+  font-family: var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 h1 {
   font-family: var(--mono);
   font-size: 0.95rem;

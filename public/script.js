@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentUser) {
       userLabel.textContent = currentUser.email?.split('@')[0] || ''
       userMenu.classList.remove('hidden')
+      authBtn.disabled = false
       authBtn.textContent = 'Sign out'
       authPanel.classList.add('hidden')
       authError.textContent = ''
@@ -108,6 +109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       userLabel.textContent = ''
       userMenu.classList.add('hidden')
+      authBtn.disabled = false
       authBtn.textContent = 'Sign in'
       authPanel.classList.add('hidden')
       resetSavedPlacesDropdown()
@@ -122,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentUser = session.user
       document.getElementById('userLabel').textContent = session.user.email?.split('@')[0] || ''
       document.getElementById('userMenu').classList.remove('hidden')
+      document.getElementById('authBtn').disabled = false
       document.getElementById('authBtn').textContent = 'Sign out'
       document.getElementById('authPanel').classList.add('hidden')
       await loadSavedPlaces({ renderDropdown: false })
@@ -1032,11 +1035,13 @@ function escapeAttribute(value) {
 
 function setupPullToRefresh() {
   const panel = document.getElementById('panel')
+  const refreshLoader = document.getElementById('refreshLoader')
   let startY = 0
   let dragging = false
+  let refreshing = false
 
   panel.addEventListener('touchstart', (event) => {
-    if (panel.scrollTop > 0 || event.touches.length !== 1) {
+    if (refreshing || panel.scrollTop > 0 || event.touches.length !== 1) {
       dragging = false
       return
     }
@@ -1053,6 +1058,8 @@ function setupPullToRefresh() {
     const distance = event.touches[0].clientY - startY
     if (distance > 90) {
       dragging = false
+      refreshing = true
+      refreshLoader.classList.remove('hidden')
       window.location.reload()
     }
   }, { passive: true })
@@ -1061,7 +1068,6 @@ function setupPullToRefresh() {
     dragging = false
   }, { passive: true })
 }
-
 
 
 
