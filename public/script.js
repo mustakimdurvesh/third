@@ -24,6 +24,14 @@ const TYPE_META = {
   wine_bar: { icon: '&#127863;', label: 'Wine bar' },
   pub: { icon: '&#127866;', label: 'Pub' }
 }
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), ms)
+    })
+  ])
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   const mapEl = document.getElementById('map')
@@ -120,9 +128,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   })
 
   document.getElementById('authBtn').addEventListener('click', async () => {
+    const authBtn = document.getElementById('authBtn')
+
     if (currentUser) {
       closeSavedPlacesDropdown()
-      await supabase.auth.signOut()
+      authBtn.disabled = true
+      authBtn.textContent = 'Signing out...'
+
+      try {
+        const result = await withTimeout(supabase.auth.signOut(), 8000, 'Sign out took too long. Please try again.')
+        if (result?.error) {
+          throw result.error
+        }
+      } catch (error) {
+        showStatusMessage(error.message || 'Could not sign out.', '#e53e3e')
+        authBtn.disabled = false
+        authBtn.textContent = 'Sign out'
+      }
     } else {
       document.getElementById('authPanel').classList.remove('hidden')
     }
@@ -241,11 +263,15 @@ async function loadSavedPlaces({ renderDropdown = true } = {}) {
     content.innerHTML = '<div class="saved-dropdown-state">Loading...</div>'
   }
 
-  const { data, error } = await supabase
-    .from('saved_places')
-    .select('id, name, type, address, latitude, longitude, rating, distance')
-    .eq('user_id', currentUser.id)
-    .order('name', { ascending: true })
+  const { data, error } = await withTimeout(
+    supabase
+      .from('saved_places')
+      .select('id, name, type, address, latitude, longitude, rating, distance')
+      .eq('user_id', currentUser.id)
+      .order('name', { ascending: true }),
+    8000,
+    'Loading saved places took too long.'
+  )
 
   if (error) {
     if (renderDropdown) {
@@ -795,30 +821,38 @@ async function savePlace(rec, btn) {
   btn.textContent = 'Saving...'
 
   try {
-    const { data: existingSave, error: existingError } = await supabase
-      .from('saved_places')
-      .select('id')
-      .eq('user_id', currentUser.id)
-      .eq('name', rec.name)
-      .eq('address', rec.address || '')
-      .limit(1)
+    const { data: existingSave, error: existingError } = await withTimeout(
+      supabase
+        .from('saved_places')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('name', rec.name)
+        .eq('address', rec.address || '')
+        .limit(1),
+      8000,
+      'Checking saved places took too long.'
+    )
 
     if (existingError) {
       throw existingError
     }
 
     if (!existingSave?.length) {
-      const { error } = await supabase.from('saved_places').insert({
-        user_id: currentUser.id,
-        name: rec.name,
-        type: rec.type,
-        address: rec.address || '',
-        latitude: rec.latitude,
-        longitude: rec.longitude,
-        rating: rec.rating,
-        distance: rec.distance,
-        opening_hours: Array.isArray(rec.opening_hours) ? rec.opening_hours.join(', ') : rec.opening_hours
-      })
+      const { error } = await withTimeout(
+        supabase.from('saved_places').insert({
+          user_id: currentUser.id,
+          name: rec.name,
+          type: rec.type,
+          address: rec.address || '',
+          latitude: rec.latitude,
+          longitude: rec.longitude,
+          rating: rec.rating,
+          distance: rec.distance,
+          opening_hours: Array.isArray(rec.opening_hours) ? rec.opening_hours.join(', ') : rec.opening_hours
+        }),
+        8000,
+        'Saving place took too long.'
+      )
 
       if (error) {
         throw error
@@ -829,7 +863,11 @@ async function savePlace(rec, btn) {
     cachePlacePhoto(rec)
 
     const dropdownOpen = !document.getElementById('savedPlacesDropdown').classList.contains('hidden')
-    const savedPlaces = await loadSavedPlaces({ renderDropdown: dropdownOpen })
+    const savedPlaces = await withTimeout(
+      loadSavedPlaces({ renderDropdown: dropdownOpen }),
+      8000,
+      'Refreshing saved places took too long.'
+    )
     const confirmedSaved = savedPlaces.some((place) => makeSavedKey(place.name, place.address) === savedKey)
 
     if (!confirmedSaved) {
@@ -942,6 +980,8 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
+
 
 
 
