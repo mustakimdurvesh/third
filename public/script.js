@@ -780,44 +780,63 @@ async function savePlace(rec, btn) {
 
   btn.disabled = true
 
-  const { data: existingSave, error: existingError } = await supabase
-    .from('saved_places')
-    .select('id')
-    .eq('user_id', currentUser.id)
-    .eq('name', rec.name)
-    .eq('address', rec.address || '')
-    .limit(1)
+  try {
+    const { data: existingSave, error: existingError } = await supabase
+      .from('saved_places')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('name', rec.name)
+      .eq('address', rec.address || '')
+      .limit(1)
 
-  if (!existingError && existingSave?.length) {
-    btn.disabled = false
-    savedPlaceNames.add(rec.name)
-    savedPlaceKeys.add(savedKey)
-    cachePlacePhoto(rec)
-    updateSaveButtonState(btn, true)
-    return
-  }
+    if (existingError) {
+      throw existingError
+    }
 
-  const { error } = await supabase.from('saved_places').insert({
-    user_id: currentUser.id,
-    name: rec.name,
-    type: rec.type,
-    address: rec.address || '',
-    latitude: rec.latitude,
-    longitude: rec.longitude,
-    rating: rec.rating,
-    distance: rec.distance,
-    opening_hours: Array.isArray(rec.opening_hours) ? rec.opening_hours.join(', ') : rec.opening_hours
-  })
+    if (existingSave?.length) {
+      savedPlacesLoadedForUserId = null
+      savedPlaceNames.add(rec.name)
+      savedPlaceKeys.add(savedKey)
+      cachePlacePhoto(rec)
+      updateSaveButtonState(btn, true)
+      if (!document.getElementById('savedPlacesDropdown').classList.contains('hidden')) {
+        await loadSavedPlaces({ renderDropdown: true })
+      }
+      return
+    }
 
-  btn.disabled = false
+    const { error } = await supabase.from('saved_places').insert({
+      user_id: currentUser.id,
+      name: rec.name,
+      type: rec.type,
+      address: rec.address || '',
+      latitude: rec.latitude,
+      longitude: rec.longitude,
+      rating: rec.rating,
+      distance: rec.distance,
+      opening_hours: Array.isArray(rec.opening_hours) ? rec.opening_hours.join(', ') : rec.opening_hours
+    })
 
-  if (!error) {
+    if (error) {
+      throw error
+    }
+
     savedPlacesLoadedForUserId = null
     savedPlaceNames.add(rec.name)
     savedPlaceKeys.add(savedKey)
     cachePlacePhoto(rec)
     updateSaveButtonState(btn, true)
+
+    if (!document.getElementById('savedPlacesDropdown').classList.contains('hidden')) {
+      await loadSavedPlaces({ renderDropdown: true })
+    }
+  } catch (error) {
+    btn.disabled = false
+    showAuthMessage(error.message || 'Could not save place.', '#e53e3e')
+    return
   }
+
+  btn.disabled = false
 }
 
 function showSavedPlacePreview(place) {
@@ -914,6 +933,7 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
 
 
 
