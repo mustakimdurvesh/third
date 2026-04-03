@@ -27,7 +27,9 @@
         <button id="authBtn" type="button">Sign in</button>
       </div>
     </div>
-    <div id="refreshLoader" class="refresh-loader hidden">Refreshing...</div>
+    <div id="refreshLoader" class="refresh-loader hidden" aria-hidden="true">
+      <span class="refresh-spinner"></span>
+    </div>
 
     <div id="authPanel" class="hidden">
       <input type="email" id="emailInput" placeholder="Email">

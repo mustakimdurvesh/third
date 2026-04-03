@@ -1040,6 +1040,13 @@ function setupPullToRefresh() {
   let dragging = false
   let refreshing = false
 
+  const resetLoader = () => {
+    refreshLoader.style.opacity = '0'
+    refreshLoader.style.transform = 'translateY(-10px)'
+  }
+
+  resetLoader()
+
   panel.addEventListener('touchstart', (event) => {
     if (refreshing || panel.scrollTop > 0 || event.touches.length !== 1) {
       dragging = false
@@ -1055,20 +1062,33 @@ function setupPullToRefresh() {
       return
     }
 
-    const distance = event.touches[0].clientY - startY
+    const distance = Math.max(0, event.touches[0].clientY - startY)
+    if (distance > 12) {
+      refreshLoader.classList.remove('hidden')
+      refreshLoader.style.opacity = String(Math.min(distance / 90, 1))
+      refreshLoader.style.transform = `translateY(${Math.min(distance / 8, 8)}px)`
+    }
+
     if (distance > 90) {
       dragging = false
       refreshing = true
       refreshLoader.classList.remove('hidden')
-      window.location.reload()
+      refreshLoader.style.opacity = '1'
+      refreshLoader.style.transform = 'translateY(8px)'
+      window.setTimeout(() => {
+        window.location.reload()
+      }, 220)
     }
   }, { passive: true })
 
   panel.addEventListener('touchend', () => {
+    if (!refreshing) {
+      refreshLoader.classList.add('hidden')
+      resetLoader()
+    }
     dragging = false
   }, { passive: true })
 }
-
 
 
 
