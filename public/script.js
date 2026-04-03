@@ -442,20 +442,6 @@ function setupFindButton() {
     }
 
     isFinding = true
-
-    if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
-      userLat = FALLBACK_LOCATION.lat
-      userLng = FALLBACK_LOCATION.lng
-    }
-
-    if (currentUser && savedPlacesLoadedForUserId !== currentUser.id) {
-      await loadSavedPlaces({ renderDropdown: false })
-    }
-
-    const situation = getSituation()
-    const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 12000)
-
     findBtn.disabled = true
     findBtn.textContent = 'Finding...'
     results.classList.add('hidden')
@@ -463,6 +449,21 @@ function setupFindButton() {
     surpriseBtn.classList.add('hidden')
     skeleton.classList.remove('hidden')
     clearMarkers()
+
+    if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
+      userLat = FALLBACK_LOCATION.lat
+      userLng = FALLBACK_LOCATION.lng
+    }
+
+    if (currentUser && savedPlacesLoadedForUserId !== currentUser.id) {
+      loadSavedPlaces({ renderDropdown: false }).catch((error) => {
+        console.warn('Saved places refresh skipped during search:', error)
+      })
+    }
+
+    const situation = getSituation()
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 12000)
 
     try {
       const placesRes = await fetch('/api/places', {
@@ -913,6 +914,7 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
 
 
 
