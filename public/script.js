@@ -693,7 +693,6 @@ function displayResults(recommendations) {
         ${timingText ? `<div class="result-timing">${timingText}</div>` : ''}
         <div class="result-footer">
           <div class="result-address">${rec.address || ''}</div>
-          <div class="result-tap-hint">Tap card for directions</div>
         </div>
       </div>
     `
@@ -747,7 +746,7 @@ function getTimingText(place) {
 
   if (openNow === true) {
     const matches = hoursText.match(/\d{1,2}:\d{2}\s?[AP]M/gi) || []
-    const closePart = matches[matches.length - 1] || hoursText.split('–').pop()?.trim() || hoursText.split('-').pop()?.trim()
+    const closePart = matches[matches.length - 1] || hoursText.split('ï¿½').pop()?.trim() || hoursText.split('-').pop()?.trim()
     return closePart ? `Closes at ${closePart}` : 'Open now'
   }
 
