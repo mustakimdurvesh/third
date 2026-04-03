@@ -10,6 +10,7 @@ let shownPlaceNames = []
 let isFinding = false
 let lastPlaces = []
 let lastSituation = ''
+let displayedRecommendations = []
 let savedPlacesLoadedForUserId = null
 let savedPlaceNames = new Set()
 let savedPlaceKeys = new Set()
@@ -82,6 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupChips()
   setupFindButton()
+  setupPullToRefresh()
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     currentUser = session?.user || null
@@ -661,6 +663,7 @@ function buildFallbackReason(place, need) {
 function displayResults(recommendations) {
   const results = document.getElementById('results')
   results.innerHTML = ''
+  displayedRecommendations = recommendations.map((recommendation) => ({ ...recommendation }))
 
   recommendations.forEach((rec) => {
     const typeMeta = getTypeMeta(rec)
@@ -758,6 +761,11 @@ function formatDistance(distance) {
 }
 
 function refreshSaveButtons() {
+  if (displayedRecommendations.length && !document.getElementById('results').classList.contains('hidden')) {
+    displayResults(displayedRecommendations)
+    return
+  }
+
   document.querySelectorAll('.save-btn[data-place-key]').forEach((button) => {
     const placeKey = button.dataset.placeKey
     const isSaved = currentUser && savedPlaceKeys.has(placeKey)
@@ -980,6 +988,37 @@ function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
 
+function setupPullToRefresh() {
+  const panel = document.getElementById('panel')
+  let startY = 0
+  let dragging = false
+
+  panel.addEventListener('touchstart', (event) => {
+    if (panel.scrollTop > 0 || event.touches.length !== 1) {
+      dragging = false
+      return
+    }
+
+    startY = event.touches[0].clientY
+    dragging = true
+  }, { passive: true })
+
+  panel.addEventListener('touchmove', (event) => {
+    if (!dragging || panel.scrollTop > 0) {
+      return
+    }
+
+    const distance = event.touches[0].clientY - startY
+    if (distance > 90) {
+      dragging = false
+      window.location.reload()
+    }
+  }, { passive: true })
+
+  panel.addEventListener('touchend', () => {
+    dragging = false
+  }, { passive: true })
+}
 
 
 
