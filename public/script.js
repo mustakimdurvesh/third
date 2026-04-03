@@ -7,6 +7,7 @@ let userLat
 let userLng
 let markers = []
 let shownPlaceNames = []
+let isFinding = false
 let lastPlaces = []
 let lastSituation = ''
 let savedPlacesLoadedForUserId = null
@@ -435,7 +436,13 @@ function setupFindButton() {
   const skeleton = document.getElementById('skeleton')
   const surpriseBtn = document.getElementById('surpriseBtn')
 
-  findBtn.addEventListener('click', async () => {
+  const handleFindPlace = async () => {
+    if (isFinding) {
+      return
+    }
+
+    isFinding = true
+
     if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
       userLat = FALLBACK_LOCATION.lat
       userLng = FALLBACK_LOCATION.lng
@@ -446,6 +453,8 @@ function setupFindButton() {
     }
 
     const situation = getSituation()
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 12000)
 
     findBtn.disabled = true
     findBtn.textContent = 'Finding...'
@@ -463,9 +472,10 @@ function setupFindButton() {
           latitude: userLat,
           longitude: userLng,
           situation
-        })
+        }),
+        signal: controller.signal
       })
-      const placesData = await placesRes.json()
+      const placesData = await placesRes.json().catch(() => ({}))
 
       if (!placesRes.ok) {
         throw new Error(placesData.error || 'Could not fetch nearby places.')
@@ -498,12 +508,20 @@ function setupFindButton() {
       surpriseBtn.classList.remove('hidden')
     } catch (error) {
       skeleton.classList.add('hidden')
-      showError(error.message || 'Something went wrong. Please try again.')
+      const message = error?.name === 'AbortError'
+        ? 'Search took too long. Please try again.'
+        : (error.message || 'Something went wrong. Please try again.')
+      showError(message)
     } finally {
+      window.clearTimeout(timeout)
       findBtn.disabled = false
       findBtn.textContent = 'Find my place'
+      isFinding = false
     }
-  })
+  }
+
+  findBtn.onclick = handleFindPlace
+  window.handleFindPlace = handleFindPlace
 }
 
 async function fetchRecommendations(places, situation, exclude = '') {
@@ -877,6 +895,7 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
 
 
 
