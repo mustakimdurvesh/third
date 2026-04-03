@@ -153,22 +153,56 @@ document.addEventListener('DOMContentLoaded', async () => {
   })
 
   document.getElementById('signInBtn').addEventListener('click', async () => {
+    const signInBtn = document.getElementById('signInBtn')
     const email = document.getElementById('emailInput').value.trim()
     const password = document.getElementById('passwordInput').value.trim()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      showAuthMessage(error.message, '#e53e3e')
+
+    signInBtn.disabled = true
+    signInBtn.textContent = 'Signing in...'
+
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        8000,
+        'Sign in took too long. Please try again.'
+      )
+
+      if (error) {
+        throw error
+      }
+    } catch (error) {
+      showAuthMessage(error.message || 'Could not sign in.', '#e53e3e')
+    } finally {
+      signInBtn.disabled = false
+      signInBtn.textContent = 'Sign in'
     }
   })
 
   document.getElementById('signUpBtn').addEventListener('click', async () => {
+    const signUpBtn = document.getElementById('signUpBtn')
     const email = document.getElementById('emailInput').value.trim()
     const password = document.getElementById('passwordInput').value.trim()
-    const { error } = await supabase.auth.signUp({ email, password })
-    if (error) {
-      showAuthMessage(error.message, '#e53e3e')
-    } else {
+
+    signUpBtn.disabled = true
+    signUpBtn.textContent = 'Signing up...'
+
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signUp({ email, password }),
+        8000,
+        'Sign up took too long. Please try again.'
+      )
+
+      if (error) {
+        throw error
+      }
+
       showAuthMessage('Check your email to confirm.', '#1db954')
+    } catch (error) {
+      showAuthMessage(error.message || 'Could not sign up.', '#e53e3e')
+    } finally {
+      signUpBtn.disabled = false
+      signUpBtn.textContent = 'Sign up'
     }
   })
 
@@ -190,14 +224,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       return
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin
-    })
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin
+        }),
+        8000,
+        'Password reset took too long. Please try again.'
+      )
 
-    if (error) {
-      showAuthMessage(error.message, '#e53e3e')
-    } else {
+      if (error) {
+        throw error
+      }
+
       showAuthMessage('Password reset email sent.', '#1db954')
+    } catch (error) {
+      showAuthMessage(error.message || 'Could not send reset email.', '#e53e3e')
     }
   })
 
@@ -1019,7 +1061,6 @@ function setupPullToRefresh() {
     dragging = false
   }, { passive: true })
 }
-
 
 
 
