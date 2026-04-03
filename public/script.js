@@ -379,19 +379,14 @@ function initMap(lat, lng) {
       container: 'map',
       style: {
         version: 8,
-        sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '&copy; OpenStreetMap contributors'
-          }
-        },
+        sources: {},
         layers: [
           {
-            id: 'osm',
-            type: 'raster',
-            source: 'osm'
+            id: 'background',
+            type: 'background',
+            paint: {
+              'background-color': '#101010'
+            }
           }
         ]
       },
@@ -885,6 +880,7 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
 
 
 
