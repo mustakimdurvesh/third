@@ -44,6 +44,7 @@ ${placeSummary}
 ${exclude ? `\nDo NOT recommend any of these already shown places: ${exclude}` : ''}
 
 Strict selection rules:
+- ALWAYS prefer coffee shops and cafes over restaurants, sweet shops, or fast food for any situation involving work or solo time
 - Coffee shops and cafes with good ratings should be top priority for any situation involving work or solo time
 - NEVER recommend quick stop eatery or fast food as a third space
 - A third space must allow lingering, not a quick stop
