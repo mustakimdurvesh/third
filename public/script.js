@@ -29,9 +29,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const headerEl = document.getElementById('header')
   const panelEl = document.getElementById('panel')
 
-  const mapHeight = window.innerHeight - headerEl.offsetHeight - panelEl.offsetHeight
-  mapEl.style.height = mapHeight + 'px'
-
   setupUserMenu()
 
   const hash = window.location.hash
@@ -880,6 +877,7 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
 
 
 

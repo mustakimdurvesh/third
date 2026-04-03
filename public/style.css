@@ -328,13 +328,17 @@ button.secondary:hover {
 
 #map {
   width: 100%;
+  height: clamp(180px, 34vh, 320px);
   flex-shrink: 0;
   position: relative;
   overflow: hidden;
+  z-index: 0;
 }
 
 #panel {
   flex: 1;
+  position: relative;
+  z-index: 2;
   background: linear-gradient(180deg, var(--surface), #0f0f0f);
   border-top: 1px solid var(--border);
   overflow-y: auto;
@@ -394,6 +398,9 @@ button.secondary:hover {
 
 #findBtn {
   width: 100%;
+  position: relative;
+  z-index: 3;
+  touch-action: manipulation;
   padding: 11px;
   font-size: 0.72rem;
   font-weight: 500;
@@ -705,6 +712,10 @@ button.secondary:hover {
   position: relative !important;
 }
 
+#map .maplibregl-canvas {
+  touch-action: pan-x pan-y;
+}
+
 @media (max-width: 640px) {
   .saved-dropdown {
     width: min(292px, calc(100vw - 24px));
@@ -725,4 +736,9 @@ button.secondary:hover {
   }
 }
 
+
+
+#map .maplibregl-canvas {
+  touch-action: pan-x pan-y;
+}
 
