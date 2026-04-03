@@ -521,6 +521,24 @@ function setupFindButton() {
   }
 
   findBtn.onclick = handleFindPlace
+  findBtn.addEventListener('touchend', (event) => {
+    event.preventDefault()
+    handleFindPlace()
+  }, { passive: false })
+
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('#findBtn')) {
+      handleFindPlace()
+    }
+  })
+
+  document.addEventListener('touchend', (event) => {
+    if (event.target.closest('#findBtn')) {
+      event.preventDefault()
+      handleFindPlace()
+    }
+  }, { passive: false })
+
   window.handleFindPlace = handleFindPlace
 }
 
@@ -895,6 +913,7 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
 
 
 
