@@ -764,6 +764,19 @@ function showAuthMessage(message, color) {
   authError.style.color = color
   authError.classList.remove('hidden')
 }
+function showStatusMessage(message, color = '#e53e3e') {
+  const authError = document.getElementById('authError')
+  const authPanel = document.getElementById('authPanel')
+  authError.textContent = message
+  authError.style.color = color
+  authError.classList.remove('hidden')
+
+  if (authPanel.classList.contains('hidden')) {
+    window.setTimeout(() => {
+      authError.classList.add('hidden')
+    }, 3500)
+  }
+}
 
 async function savePlace(rec, btn) {
   if (!currentUser) {
@@ -779,6 +792,7 @@ async function savePlace(rec, btn) {
   }
 
   btn.disabled = true
+  btn.textContent = 'Saving...'
 
   try {
     const { data: existingSave, error: existingError } = await supabase
@@ -793,50 +807,45 @@ async function savePlace(rec, btn) {
       throw existingError
     }
 
-    if (existingSave?.length) {
-      savedPlacesLoadedForUserId = null
-      savedPlaceNames.add(rec.name)
-      savedPlaceKeys.add(savedKey)
-      cachePlacePhoto(rec)
-      updateSaveButtonState(btn, true)
-      if (!document.getElementById('savedPlacesDropdown').classList.contains('hidden')) {
-        await loadSavedPlaces({ renderDropdown: true })
+    if (!existingSave?.length) {
+      const { error } = await supabase.from('saved_places').insert({
+        user_id: currentUser.id,
+        name: rec.name,
+        type: rec.type,
+        address: rec.address || '',
+        latitude: rec.latitude,
+        longitude: rec.longitude,
+        rating: rec.rating,
+        distance: rec.distance,
+        opening_hours: Array.isArray(rec.opening_hours) ? rec.opening_hours.join(', ') : rec.opening_hours
+      })
+
+      if (error) {
+        throw error
       }
-      return
-    }
-
-    const { error } = await supabase.from('saved_places').insert({
-      user_id: currentUser.id,
-      name: rec.name,
-      type: rec.type,
-      address: rec.address || '',
-      latitude: rec.latitude,
-      longitude: rec.longitude,
-      rating: rec.rating,
-      distance: rec.distance,
-      opening_hours: Array.isArray(rec.opening_hours) ? rec.opening_hours.join(', ') : rec.opening_hours
-    })
-
-    if (error) {
-      throw error
     }
 
     savedPlacesLoadedForUserId = null
+    cachePlacePhoto(rec)
+
+    const dropdownOpen = !document.getElementById('savedPlacesDropdown').classList.contains('hidden')
+    const savedPlaces = await loadSavedPlaces({ renderDropdown: dropdownOpen })
+    const confirmedSaved = savedPlaces.some((place) => makeSavedKey(place.name, place.address) === savedKey)
+
+    if (!confirmedSaved) {
+      throw new Error('Place was not confirmed in your saved list. Please check row-level permissions.')
+    }
+
     savedPlaceNames.add(rec.name)
     savedPlaceKeys.add(savedKey)
-    cachePlacePhoto(rec)
     updateSaveButtonState(btn, true)
-
-    if (!document.getElementById('savedPlacesDropdown').classList.contains('hidden')) {
-      await loadSavedPlaces({ renderDropdown: true })
-    }
+    showStatusMessage('Place saved.', '#1db954')
   } catch (error) {
+    updateSaveButtonState(btn, false)
+    showStatusMessage(error.message || 'Could not save place.', '#e53e3e')
+  } finally {
     btn.disabled = false
-    showAuthMessage(error.message || 'Could not save place.', '#e53e3e')
-    return
   }
-
-  btn.disabled = false
 }
 
 function showSavedPlacePreview(place) {
@@ -933,6 +942,7 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
 
 
 
