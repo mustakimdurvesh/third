@@ -2,6 +2,7 @@ import { supabase } from './supabase.js'
 
 let currentUser = null
 let map
+let mapReady = false
 let userLat
 let userLng
 let markers = []
@@ -373,18 +374,48 @@ function resetSavedPlacesDropdown() {
 }
 
 function initMap(lat, lng) {
-  map = new maplibregl.Map({
-    container: 'map',
-    style: 'https://tiles.openfreemap.org/styles/dark',
-    center: [lng, lat],
-    zoom: 14
-  })
+  try {
+    map = new maplibregl.Map({
+      container: 'map',
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '&copy; OpenStreetMap contributors'
+          }
+        },
+        layers: [
+          {
+            id: 'osm',
+            type: 'raster',
+            source: 'osm'
+          }
+        ]
+      },
+      center: [lng, lat],
+      zoom: 14
+    })
 
-  map.on('load', () => {
-    new maplibregl.Marker({ color: '#ffffff' })
-      .setLngLat([lng, lat])
-      .addTo(map)
-  })
+    mapReady = false
+
+    map.on('load', () => {
+      mapReady = true
+      new maplibregl.Marker({ color: '#ffffff' })
+        .setLngLat([lng, lat])
+        .addTo(map)
+    })
+
+    map.on('error', (event) => {
+      console.warn('Map warning:', event?.error || event)
+    })
+  } catch (error) {
+    map = null
+    mapReady = false
+    console.warn('Map failed to initialize:', error)
+  }
 }
 
 function setupChips() {
@@ -627,7 +658,7 @@ function displayResults(recommendations) {
 
     results.appendChild(card)
 
-    if (Number.isFinite(rec.latitude) && Number.isFinite(rec.longitude)) {
+    if (mapReady && map && Number.isFinite(rec.latitude) && Number.isFinite(rec.longitude)) {
       const marker = new maplibregl.Marker({ color: '#19bd52' })
         .setLngLat([rec.longitude, rec.latitude])
         .addTo(map)
@@ -773,7 +804,7 @@ function showSavedPlacePreview(place) {
   displayResults([preview])
   document.getElementById('surpriseBtn').classList.add('hidden')
 
-  if (Number.isFinite(place.latitude) && Number.isFinite(place.longitude) && map) {
+  if (mapReady && map && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)) {
     map.flyTo({ center: [place.longitude, place.latitude], zoom: 16 })
     const marker = new maplibregl.Marker({ color: '#19bd52' })
       .setLngLat([place.longitude, place.latitude])
@@ -854,6 +885,10 @@ function makeSavedKey(name, address) {
 function escapeAttribute(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
+
+
+
+
 
 
 
